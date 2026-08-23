@@ -81,6 +81,24 @@ const load = (name) => {
 
 const register = load('placements.json')
 const decoyBook = load('decoys.json')
+
+/**
+ * The cap-height ledger, written by phase 5's generators through
+ * scripts/lib/reach.mjs. Optional: on a checkout where the generators have not
+ * run there is nothing to read, and R10 stays pending rather than failing.
+ *
+ * It is a SEPARATE file from the register on purpose. placements.json is
+ * judgement — where the six live — and a generator that wrote into it could
+ * silently overwrite a decision with a measurement. Keeping them apart means
+ * the register stays hand-authored, the measurements stay machine-authored,
+ * and this audit is the only thing that joins them.
+ */
+const reachFile = join(vault, 'reach.json')
+const reach = existsSync(reachFile) ? JSON.parse(readFileSync(reachFile, 'utf8')) : null
+const measuredOf = (id) => reach?.measured?.[id] ?? null
+
+/** The proof crop a generator wrote for a placement, if it wrote one. */
+const proofOf = (id) => (existsSync(join(vault, 'proof', `${id}.png`)) ? `_private/proof/${id}.png` : null)
 const jobs = {
   'plate-jobs.json': load('plate-jobs.json'),
   'type-jobs.json': load('type-jobs.json'),
@@ -304,11 +322,38 @@ for (const p of placements) {
 // R10 — the measured cap height. Phase 5 fills these in; until then they are
 //       pending, not passing. Rule 4 is not satisfied by a screenshot on a
 //       27-inch monitor.
-for (const p of placements) {
-  if (p.cap375 == null) {
-    wait('R10', `${p.id}: no measured cap height at ${register.reach?.viewportPx ?? 375}px yet.`)
-  } else if (p.cap375 < (register.reach?.capFloorPx ?? 7)) {
-    fail('R10', `${p.id}: ${p.cap375}px cap at 375px, under the ${register.reach.capFloorPx}px floor.`)
+{
+  const floor = register.reach?.capFloorPx ?? 7
+  const viewport = register.reach?.viewportPx ?? 375
+
+  for (const p of placements) {
+    const seen = measuredOf(p.id)
+    const cap = seen?.cap375 ?? p.cap375
+
+    if (cap == null) {
+      wait('R10', `${p.id}: no measured cap height at ${viewport}px yet — phase 5's generators write it.`)
+      continue
+    }
+    if (cap < floor) {
+      fail('R10', `${p.id}: ${cap}px cap at ${viewport}px, under the ${floor}px floor.`)
+    }
+    if (!proofOf(p.id)) {
+      wait('R10', `${p.id}: measured at ${cap}px but no proof crop at _private/proof/${p.id}.png.`)
+    }
+
+    // The render size the measurement assumes is a CONTRACT on later phases,
+    // not a property of the artwork. Surfaced as a note so it is read.
+    if (seen?.scales) {
+      notes.push(
+        `${p.id}: drawn as geometry, so it is set to a ${cap}px cap directly and ` +
+          'has no render width below which it degrades. Do not set it smaller than the type beside it.',
+      )
+    } else if (seen?.floorAtPx && seen?.renderPx) {
+      notes.push(
+        `${p.id}: measured against ${seen.renderPx}px of render; ` +
+          `the floor is met at any width from ${seen.floorAtPx}px. Phase 6 must not go below it.`,
+      )
+    }
   }
 }
 
@@ -478,6 +523,30 @@ if (existsSync(built)) {
 
 const T = { A: 'T-A — baked into raster artwork', B: 'T-B — drawn as outline geometry', C: 'T-C — rendered in WebGL' }
 
+/**
+ * The cap-height cell, and where the number came from.
+ *
+ * A measurement with no provenance is a number somebody typed, which is the
+ * exact failure mode phase 4 section 2 warns about: "a clue you can read on
+ * your 27-inch monitor is not evidence about anything."
+ */
+function capCell(p) {
+  const seen = measuredOf(p.id)
+  const floor = register.reach?.capFloorPx ?? 7
+  if (!seen) return p.cap375 == null ? '_pending — phase 5 measures it_' : `${p.cap375}px`
+  if (seen.scales) {
+    return (
+      `**${seen.cap375}px** (floor ${floor}px) — measured by \`${seen.from}\`. ` +
+      'Drawn as geometry and scaled to that cap directly, so there is no render width at which it degrades.'
+    )
+  }
+  return (
+    `**${seen.cap375}px** (floor ${floor}px) — measured by \`${seen.from}\` ` +
+    `against ${seen.renderPx ?? register.reach?.viewportPx ?? 375}px of render` +
+    (seen.floorAtPx ? `; the floor holds at any render width from **${seen.floorAtPx}px**` : '')
+  )
+}
+
 function key() {
   const seat = (p) => {
     const name = sectionsOf(p.route).find((s) => s.n === p.section)?.name
@@ -497,9 +566,10 @@ function key() {
     `| **Produced by** | \`_private/${p.job.file}\` → \`${p.job.at}\` |`,
     `| **Set** | member ${p.set.index + 1} of ${p.set.members} — ${p.set.of} |`,
     `| **Accessible name** | ${p.altVeiled ? `\`${p.alt}\`, veiled` : `\`${p.alt}\``} |`,
-    `| **Cap height at ${register.reach?.viewportPx ?? 375}px** | ${p.cap375 == null ? '_pending — phase 5 measures it_' : `${p.cap375}px`} |`,
-    `| **Screenshot 375px** | ${p.shot375 ? `\`${p.shot375}\`` : '_pending_'} |`,
-    `| **Screenshot 1440px** | ${p.shot1440 ? `\`${p.shot1440}\`` : '_pending_'} |`,
+    `| **Cap height at ${register.reach?.viewportPx ?? 375}px** | ${capCell(p)} |`,
+    `| **Cap-height proof** | ${proofOf(p.id) ? `\`${proofOf(p.id)}\` — the term's own region, resampled to phone size and enlarged nearest-neighbour, so what it shows is the pixel grid a phone rasterises` : '_pending — the generator writes it_'} |`,
+    `| **Screenshot 375px** | ${p.shot375 ? `\`${p.shot375}\`` : '_pending — needs the section built (phases 6-7)_'} |`,
+    `| **Screenshot 1440px** | ${p.shot1440 ? `\`${p.shot1440}\`` : '_pending — needs the section built (phases 6-7)_'} |`,
     '',
     `**Why it is native.** ${p.native}`,
     '',
@@ -516,9 +586,13 @@ function key() {
   ]
 
   const crib = [
-    '| # | Term | Technique | Where | Reads |',
-    '|---|---|---|---|---|',
-    ...placements.map((p, i) => `| ${i + 1} | \`${p.term}\` | T-${p.technique} | ${seat(p)} | \`${p.reads}\` |`),
+    '| # | Term | Technique | Where | Reads | Cap at 375px |',
+    '|---|---|---|---|---|---|',
+    ...placements.map((p, i) => {
+      const seen = measuredOf(p.id)
+      const cap = seen?.cap375 ?? p.cap375
+      return `| ${i + 1} | \`${p.term}\` | T-${p.technique} | ${seat(p)} | \`${p.reads}\` | ${cap == null ? '—' : `${cap}px`} |`
+    }),
   ]
 
   const book = [
@@ -603,6 +677,9 @@ console.log('Placement register — CROCARIA\n')
 console.log(`  ${placements.length} placement(s) · techniques ${[...new Set(placements.map((p) => 'T-' + p.technique))].sort().join(' ')}`)
 console.log(`  ${decoys.length} decoy(s) · ${inArt.length} baked into artwork · ${inDom.length} in copy`)
 console.log(`  build  ${text ? `${text.size} route(s) read as rendered text` : 'not present'}`)
+console.log(
+  `  reach  ${reach ? `${Object.keys(reach.measured ?? {}).length} cap height(s) measured at ${reach.viewportPx}px, floor ${reach.floorPx}px` : 'not measured — run the phase 5 generators'}`,
+)
 console.log('  key    _private/KEY.md written')
 
 if (notes.length) {

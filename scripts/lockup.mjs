@@ -32,7 +32,7 @@
  */
 import { writeFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { load, contours, toPath, bounds, round } from './lib/glyphs.mjs'
+import { face, run, toPath, bounds, round } from './lib/glyphs.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 
@@ -66,35 +66,14 @@ if (!existsSync(fileURLToPath(fontPath))) {
   process.exit(1)
 }
 
-const face = load(fileURLToPath(fontPath))
+const display = face(fileURLToPath(fontPath))
 
 /**
- * Lays a line out and returns its glyphs, each with the pen offset it sits at.
+ * Turns a line into a viewBox and one path.
  *
- * Kerning is deliberately not applied. The reference tracks nothing and kerns
- * nothing; the wordmark is set on plain advance widths, and adding pair
- * kerning here would make our lockup subtly narrower than everything else set
- * in the same face on the page.
- */
-function lay(text) {
-  const glyphs = []
-  let pen = 0
-
-  for (const ch of text) {
-    const gid = face.map.get(ch.codePointAt(0))
-    if (gid === undefined) {
-      console.error(`\nNo glyph for "${ch}" in ${FONT}. Regenerate, do not substitute.\n`)
-      process.exit(1)
-    }
-    glyphs.push({ gid, pen, shapes: contours(face.t, face.loca, gid) })
-    pen += face.adv[gid]
-  }
-
-  return { glyphs, width: pen }
-}
-
-/**
- * Turns a laid-out line into a viewBox and one path.
+ * Kerning is deliberately not applied — `run` sets on plain advance widths.
+ * The reference tracks nothing and kerns nothing; a lockup that kerned would
+ * be subtly narrower than everything else set in the same face on the page.
  *
  * The box is tightened onto the INK, not onto the em square. A wordmark boxed
  * on the em carries the font's descender space as invisible padding, so a
@@ -102,22 +81,15 @@ function lay(text) {
  * alignment against it would be off by an amount nobody can find.
  */
 function draw(text) {
-  const { glyphs } = lay(text)
+  const { commands } = run(display, text, { size: display.em })
+  const box = bounds(commands)
 
-  const flat = glyphs.flatMap(({ pen, shapes }) =>
-    shapes.map((shape) => shape.map((p) => ({ ...p, x: p.x + pen }))),
-  )
-
-  const box = bounds(flat, (p) => p)
-  const w = box.x1 - box.x0
-  const h = box.y1 - box.y0
-
-  // y-up font units to y-down user units, origin at the ink's top-left.
-  const place = (p) => ({ x: p.x - box.x0, y: box.y1 - p.y, on: p.on })
+  // The ink's top-left becomes the origin. `run` already hands back y-down.
+  const place = (p) => ({ x: p.x - box.x0, y: p.y - box.y0 })
 
   return {
-    box: [round(w), round(h)],
-    d: toPath(flat, place),
+    box: [round(box.w), round(box.h)],
+    d: toPath(commands, place),
   }
 }
 

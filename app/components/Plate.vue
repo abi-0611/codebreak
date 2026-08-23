@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { plates, type PlateKey } from '~/content/plates'
+
 /**
  * Every image on the site renders through here. Never a bare `<img>`.
  *
@@ -20,19 +22,34 @@
  * is, the way it would be described to someone who cannot see it, and no
  * more.
  *
- * Phase 5 generates app/content/plates.ts and this grows a `srcset` built from
- * it. The shape of the props is already the shape that will take.
+ * DIMENSIONS COME FROM THE MANIFEST, NOT FROM THE CALLER.
+ *
+ * Pass `name` and the source, the srcset and the intrinsic size all arrive
+ * from app/content/plates.ts, which scripts/plates.mjs writes from the files
+ * it actually encoded. A hand-passed `w`/`h` is a number that was true when
+ * somebody typed it: re-encode the plate at a different size and the attribute
+ * silently starts lying, the aspect ratio the browser reserves is wrong, and
+ * the page shifts under the reader — with nothing anywhere reporting an error.
+ *
+ * `src`/`w`/`h` are still accepted for artwork the generator does not own.
  */
-withDefaults(
+const props = withDefaults(
   defineProps<{
-    src: string
-    /** Intrinsic pixel size of `src`. Not the display size. */
-    w: number
-    h: number
+    /** A stem in app/content/plates.ts. Brings its own size and srcset. */
+    name?: PlateKey
+    /** An image the generator does not own. Requires `w` and `h`. */
+    src?: string
+    w?: number
+    h?: number
+    srcset?: string
+    /**
+     * The `sizes` attribute. Say how wide the image renders, so the browser
+     * can pick from the srcset BEFORE layout — without it a 2x encoding is
+     * fetched on a phone and rule 9's budget goes with it.
+     */
+    sizes?: string
     /** Alt text. Pass '' for genuinely decorative artwork. */
     describe: string
-    srcset?: string
-    sizes?: string
     /**
      * `early` fetches ahead of the scroll. Reserved for artwork that has to be
      * on screen the moment it is reached.
@@ -40,17 +57,33 @@ withDefaults(
     priority?: 'early' | 'lazy'
     fit?: string
   }>(),
-  { priority: 'lazy', fit: 'object-cover' },
+  { priority: 'lazy', fit: 'object-cover', sizes: '100vw' },
 )
+
+const art = computed(() => {
+  const held = props.name ? plates[props.name] : null
+  const src = held?.src ?? props.src
+  const w = held?.w ?? props.w
+  const h = held?.h ?? props.h
+
+  if (!src || !w || !h) {
+    throw new Error(
+      'Plate needs either a `name` from app/content/plates.ts, or `src` with `w` and `h`. ' +
+        'An image with no intrinsic size reserves no space and shifts the page as it lands.',
+    )
+  }
+
+  return { src, w, h, srcset: held?.srcset ?? props.srcset }
+})
 </script>
 
 <template>
   <img
-    :src="src"
-    :srcset="srcset"
-    :sizes="sizes"
-    :width="w"
-    :height="h"
+    :src="art.src"
+    :srcset="art.srcset"
+    :sizes="art.srcset ? sizes : undefined"
+    :width="art.w"
+    :height="art.h"
     :alt="describe"
     :loading="priority === 'early' ? 'eager' : 'lazy'"
     :fetchpriority="priority === 'early' ? 'high' : 'auto'"

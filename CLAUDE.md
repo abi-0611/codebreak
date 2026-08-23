@@ -174,15 +174,27 @@ npm run audit:contrast   WCAG AA for every shipped pairing
 npm run verify           both audits, then a full static build
 ```
 
-Two offline generators, run by hand, output committed:
+Offline generators, run by hand, output committed:
 
 ```
+npm run gen:mark         scripts/mark.mjs       → app/content/device.ts, public/favicon.ico, public/img/icon-*
 npm run gen:lockup       scripts/lockup.mjs     → app/content/lockup.ts
+npm run gen:outline      scripts/outline.mjs    → app/content/outlines.ts
+npm run gen:plates       scripts/plates.mjs     → public/img/*, app/content/plates.ts
+npm run gen:art          all four, in order
 npm run gen:stand-ins    scripts/stand-ins.mjs  → app/assets/plates/ (dev only)
 ```
 
-Both read licensed font binaries from `_private/fonts/`, which is git-ignored. The
+Every one of them is **deterministic**: same inputs, byte-identical output. Running
+any of them twice produces no diff, and that is a property to preserve rather than a
+happy accident — a generator that churns its output is a generator nobody re-runs.
+
+They read licensed font binaries from `_private/fonts/`, which is git-ignored. The
 re-fetch recipe is in the header of `scripts/lockup.mjs`.
+
+`scripts/plates.mjs` and `scripts/outline.mjs` also read job files from `_private/`,
+which hold every string that ends up as pixels or geometry. Those strings never enter
+the repository — only what they produce does.
 
 ---
 
@@ -372,6 +384,45 @@ the replica read as a lookalike. `.type-display-xl` keeps `line-height: .75`.
   what is left — which is what Ctrl+F actually does. It deliberately ignores
   attributes (`audit:names` owns those) and deliberately does **not** strip SVG
   `<text>`, because Chrome matches it.
+
+### Established by phase 5 — do not undo
+
+- **Cap height is measured, never eyeballed.** Every generator that draws a term
+  derives the cap it lands at on a 375px viewport, prints it, **exits non-zero under
+  7px**, and records it in `_private/reach.json` through `scripts/lib/reach.mjs`.
+  `audit:register` reads that file to close R10, so the key carries a number the run
+  that made the artwork produced. The arithmetic works because the rem engine puts
+  `1rem = 10 design px` at exactly 375px, which makes a design pixel and a CSS pixel
+  the same thing there — that is the only reason a generator can measure a page it
+  cannot see.
+- **`reach.json` is separate from `placements.json` on purpose.** The register is
+  judgement and is hand-authored; the measurements are machine-authored. A generator
+  that wrote into the register could silently overwrite a decision with a number.
+- **A job's `renderPx` is a contract on later phases, not a property of the artwork.**
+  The generator prints the render width at which each term first clears the floor.
+  Rendering a plate below it breaks rule 4 and nothing downstream will notice.
+- **Rule 4 sizes the artwork, not taste.** A 25-character label that must clear 7px on
+  a phone is ~43% of its plate's width, and a 22-character card title fixes the card.
+  Those layouts look over-scaled next to a real Victorian plate; they are what the
+  floor costs, and they are not to be "tidied" back down.
+- **Clue-bearing surfaces are graded DOWN.** 04 §4.2 is a compositing instruction. The
+  certificate, the seal and the requisition cards were all drawn at full cream first
+  and every one of them became the brightest object in its frame. Aged stock, oxidised
+  bronze and manila are the shipped tones, and the reason is written beside each.
+- **The seal centres its bands; the medallion begins its band at twelve.** Different
+  rules, each right for what it is: a band with a gap puts the gap at the bottom so no
+  word inverts, and a band closing a full revolution has no gap to place, so the only
+  question is where the eye enters. Neither touches how members of a band relate to
+  each other, which is the property the camouflage actually depends on.
+- **`sharp.composite()` SETS the layer list; it does not append.** A second
+  `.composite()` in one chain silently discards the first, with no error and a
+  plausible-looking output. Use one array, or two pipelines.
+- **`<Plate/>` takes a `name` and reads its size from `app/content/plates.ts`.** A
+  hand-passed `w`/`h` is true until somebody re-encodes the image, after which it
+  lies and the page shifts under the reader with nothing reporting an error.
+- **A full `gen:plates` run sweeps encodings it did not produce.** Changing a plate's
+  size changes the width in its filename, so the old file survives, stays committed
+  and stays in the budget while the manifest no longer mentions it.
 
 ### Drawn type, and its accessibility trade-off
 

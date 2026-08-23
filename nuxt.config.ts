@@ -83,6 +83,12 @@ export default defineNuxtConfig({
         { name: 'color-scheme', content: 'dark' },
       ],
       link: [
+        // The house mark, drawn by scripts/mark.mjs. favicon.ico is found by
+        // convention; the two PNGs are not, and a phone that cannot find one
+        // screenshots the page instead.
+        { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
+        { rel: 'icon', href: '/img/icon-512.png', type: 'image/png', sizes: '512x512' },
+        { rel: 'apple-touch-icon', href: '/img/icon-180.png', sizes: '180x180' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         { rel: 'stylesheet', href: FONTS },

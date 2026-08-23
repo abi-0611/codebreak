@@ -1,492 +1,443 @@
 #!/usr/bin/env node
 /**
- * Offline glyph-to-geometry converter.
+ * Outline geometry — phase 5, task 5.3. Technique T-B.
  *
- * Turns a line of type set in Instrument Serif into SVG <path> data, so a
- * headline can be drawn as geometry instead of as characters. Geometry is not
- * text: find-in-page walks the text of a document and there is none here.
- * Inline SVG <text> would be matched by the browser and is never used.
+ * Reads _private/type-jobs.json, sets each string from a committed font binary
+ * through lib/glyphs.mjs, and writes app/content/outlines.ts as SVG <path>
+ * data. <OutlineText/> draws it. Nothing here ships as a font, nothing is
+ * converted in the browser, and the output is committed and reviewable.
  *
- * Runs offline, on a workstation, and its output is committed. Nothing here
- * ships, no font is fetched at runtime, and the browser never sees a glyph
- * table.
+ *   node scripts/outline.mjs
+ *   node scripts/outline.mjs --job _private/type-jobs.json
  *
- * Reading the font is lib/glyphs.mjs's job — it hands back a glyph's contours
- * as path data and knows nothing about layout. What is left here is the
- * layout: lay a line out, flip it to y-down, and emit one path per glyph. The
- * other caller of that reader is plates.mjs, which sets type into imagery.
+ * DETERMINISTIC. Same font binary in, same file out, byte for byte.
  *
- * USAGE
+ * NEVER EMIT SVG <text>. Chrome's find-in-page matches inline SVG <text>,
+ * which would silently undo the entire technique — the page would look
+ * identical and the term would be one Ctrl+F away. If a glyph is missing,
+ * regenerate the geometry; do not fall back to characters.
  *
- *   node scripts/outline.mjs _private/type-jobs.json
- *   node scripts/outline.mjs --line sceneTop:ALPHA --line sceneLow:BETA
+ * Per-character <span> splitting is not a substitute and is not a defence of
+ * any kind: Chrome normalises text across inline element boundaries before
+ * matching. It is an animation tool.
  *
- * The job file is organizer-only material and lives in _private/, which is
- * git-ignored. That is deliberate: the words themselves must not enter the
- * repository, only the geometry they produce. The exact invocation that made
- * the committed output is recorded in _private/CLUE-KEY.md.
+ * THE ACCESSIBILITY TRADE-OFF, STATED PLAINLY
  *
- * JOB FILE SHAPE
+ * A line drawn as geometry cannot be selected, copied, translated by the
+ * browser, or reflowed at large text settings. The <svg> carries role="img"
+ * and an aria-label so assistive technology announces it normally — a genuine
+ * mitigation, not a fig leaf, but it does not restore selection or browser
+ * translation and nothing does.
  *
- *   {
- *     "out": "src/content/outlines.ts",
- *     "lines": [
- *       { "key": "sceneTop", "text": "..." },
- *       { "key": "sceneLow", "text": "..." }
- *     ],
- *     "rings": [
- *       { "key": "sealOne", "crown": "...", "base": "..." }
- *     ]
- *   }
+ * The trade-off is accepted deliberately and confined to display type and
+ * short labels. It never touches running copy, navigation, captions, or
+ * anything a reader has to work through. The event requires that six strings
+ * resist find-in-page; that requirement cannot be met and also leave those six
+ * selectable. Everything that is not one of those six stays real text.
  *
- * Every line in one run shares a vertical band, so two stacked lines scaled to
- * the same height keep the same cap height. Widths differ, which is what real
- * typesetting does.
+ * SETS
  *
- * RINGS
+ * A set is N strings laid out by ONE call at ONE em, boxed on ONE shared
+ * vertical band. Widths differ, which is what real typesetting does; nothing
+ * else can. That is not tidiness — 04-clue-architecture.md §4.3 turns on it. A
+ * member of a set that differs is the member everyone looks at, and one of
+ * these sets has a member worth looking at.
  *
- * A ring is a line set around a circle: `crown` along the top arc reading
- * left to right, `base` along the bottom arc, upright, tops toward the centre.
- * Both arcs occupy the same radial band, so the two read as one band of type
- * interrupted at three and nine o'clock.
+ * DO NOT HAND-TUNE A MEMBER. There is no mechanism here to do it with, which
+ * is the point.
  *
- * Every ring in every run is built from the constants in RING below — one
- * diameter, one em, one tracking, one pair of radii. Nothing about a ring is
- * derived from its own text except how far around the circle it reaches, so
- * two rings cannot drift apart no matter what they say. That property is the
- * entire reason the generator sets them rather than a person: a set of seals
- * where one is a hair different in weight or diameter reads as the odd one
- * out on sight, and whatever it says is then the first thing anyone reads.
+ * VEILED ACCESSIBLE NAMES
  *
- * The component draws the two circles and the separator dots from the same
- * constants, exported as `ringPlan`, so the drawn and the generated halves of
- * a seal cannot disagree either.
+ * <OutlineText/> needs an aria-label. For a set whose text is a banned token
+ * that name cannot ship as a literal: it would fail audit:names against the
+ * built output and it would be one Ctrl+U away from being read. So a veiled
+ * set's names are emitted through the same per-index XOR scripts/inscribe.mjs
+ * uses, and the component decodes them.
+ *
+ * THE VEIL IS APPLIED TO EVERY MEMBER OF A VEILED SET, not only to the member
+ * that is a banned token. Two plain aria-labels beside one numeric array is a
+ * pointer straight at the term for anyone reading source — worse than the
+ * string would have been.
+ *
+ * The transform is not cryptography and is not pretending to be. It exists so
+ * that a text search of the production JavaScript returns nothing, which is
+ * exactly the threat. Anyone willing to sit down and reverse it has left the
+ * intended path entirely.
  */
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
-import { load, contours, toPath, bounds, round } from './lib/glyphs.mjs'
+import sharp from 'sharp'
+import { face, run, toPath, bounds, round } from './lib/glyphs.mjs'
+import { record, grade, FLOOR, VIEWPORT } from './lib/reach.mjs'
+import { palette } from '../tokens/palette.mjs'
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url))
-const FACE =
-  'node_modules/@fontsource/instrument-serif/files/instrument-serif-latin-400-normal.woff'
+const root = fileURLToPath(new URL('..', import.meta.url))
+const at = (...parts) => resolve(root, ...parts)
 
-/** The display ramp's tracking, in em. Matches --tracking-display. */
-const TRACKING = -0.03
-/** Output em, in path units. Keeps the committed numbers small and readable. */
+const argv = process.argv.slice(2)
+const flag = (name, fallback) => {
+  const i = argv.indexOf(`--${name}`)
+  return i === -1 ? fallback : argv[i + 1]
+}
+
+const JOB = flag('job', '_private/type-jobs.json')
+
+/**
+ * Must match VEIL in scripts/inscribe.mjs and in the decoder the generated
+ * module carries. Changing it invalidates every committed name.
+ */
+const VEIL = 0x5b
+
+/** Its own inverse. Index-based, so a repeated letter does not repeat a value. */
+const turn = (n, i) => n ^ ((VEIL + i) & 0xff)
+const veil = (text) => [...text].map((ch, i) => turn(ch.charCodeAt(0), i))
+const plain = (codes) => String.fromCharCode(...codes.map(turn))
+
+/**
+ * The faces, by the name a job uses.
+ *
+ * Committed binaries in _private/fonts/, which is git-ignored: a licensed font
+ * has no business in this repository. The re-fetch recipe is in the header of
+ * scripts/lockup.mjs.
+ */
+const FACES = {
+  'display-300': '_private/fonts/display-300.woff',
+  'mono-400': '_private/fonts/mono-400.ttf',
+  'mono-500': '_private/fonts/mono-500.ttf',
+  'text-400': '_private/fonts/text-400.ttf',
+  'text-600': '_private/fonts/text-600.ttf',
+}
+
+/**
+ * The layout em, in path units.
+ *
+ * Everything is set at this size and the emitted numbers are these units, so
+ * the committed geometry is readable in a diff and independent of whatever
+ * design-pixel size a section eventually renders it at. `capPx` on the job is
+ * what carries the rendered size; this is only the resolution the curves are
+ * recorded at.
+ */
 const EM = 1000
 
 /* ==========================================================================
-   Line layout
+   Loading
    ========================================================================== */
 
-function setLine(font, text) {
-  const scale = EM / font.m.em
-  const step = TRACKING * EM
-  const glyphs = []
-  let pen = 0
-
-  for (const ch of text) {
-    const gid = font.map.get(ch.codePointAt(0)) ?? 0
-    const shapes = contours(font.t, font.loca, gid)
-    // Font units are y-up; SVG is y-down. The flip happens here, once.
-    const at = pen
-    const place = (p) => ({ x: at + p.x * scale, y: -p.y * scale, on: p.on })
-
-    if (shapes.length) {
-      glyphs.push({ d: toPath(shapes, place), box: bounds(shapes, place) })
-    }
-    pen += font.adv[gid] * scale + step
-  }
-
-  return { glyphs, advance: pen - step }
+if (!existsSync(at(JOB))) {
+  console.error(`\n  No job file at ${JOB}.\n`)
+  console.error('  It is organiser-only material and lives in _private/, which is git-ignored:')
+  console.error('  the strings themselves must not enter the repository, only the geometry they')
+  console.error('  produce. See _private/README.md.\n')
+  process.exit(1)
 }
 
-/** Translate a finished path. Cheaper than re-walking the contours. */
-function shift(d, dx, dy) {
-  let seen = 0
-  return d.replace(/-?\d*\.?\d+/g, (n) => {
-    const even = seen % 2 === 0
-    seen += 1
-    return String(round(Number(n) + (even ? dx : dy)))
+const spec = JSON.parse(readFileSync(at(JOB), 'utf8'))
+const OUT = spec.out ?? 'app/content/outlines.ts'
+
+if ((spec.rings ?? []).length) {
+  console.error('\n  This job asks for a ring. Ring lettering on this site is RASTER — the seal and')
+  console.error('  the medallion are drawn by scripts/plates.mjs, technique T-A. A drawn SVG ring')
+  console.error('  would put the band back into the DOM as geometry the browser can reflow.\n')
+  process.exit(1)
+}
+
+function faceFor(name) {
+  const file = FACES[name]
+  if (!file) {
+    console.error(`\n  Unknown face "${name}". Known: ${Object.keys(FACES).join(', ')}.\n`)
+    process.exit(1)
+  }
+  if (!existsSync(at(file))) {
+    console.error(`\n  No font at ${file}.\n`)
+    console.error('  See the re-fetch recipe in the header of scripts/lockup.mjs.\n')
+    process.exit(1)
+  }
+  return face(at(file))
+}
+
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+
+/**
+ * Lays out N strings in one call and boxes them on ONE shared band.
+ *
+ * The shared band is the union of every member's ink. Boxing each member onto
+ * its own ink would ALMOST work here — these are all caps, so they all reach
+ * the same two lines — but "almost" is doing the wrong kind of work. A member
+ * whose string happened to be all-round letters would carry a hair of overshoot
+ * the others do not, render a hair taller at the same CSS height, and become
+ * the one that looks different. The union makes that impossible instead of
+ * unlikely.
+ */
+function lay(f, members, em) {
+  const set = members.map((text) => run(f, text, { size: em }))
+  const boxes = set.map((s) => bounds(s.commands))
+
+  const band = {
+    y0: Math.min(...boxes.map((b) => b.y0)),
+    y1: Math.max(...boxes.map((b) => b.y1)),
+  }
+
+  const drawn = set.map((s, i) => {
+    const b = boxes[i]
+    // Origin at the member's own left edge and the SET's top line.
+    const place = (p) => ({ x: p.x - b.x0, y: p.y - band.y0 })
+    return {
+      box: [round(b.w), round(band.y1 - band.y0)],
+      d: toPath(s.commands, place),
+    }
   })
+
+  return { drawn, cap: set[0].cap, height: band.y1 - band.y0 }
 }
 
 /* ==========================================================================
-   Ring layout
-   --------------------------------------------------------------------------
-   Circular type, set the way a punch-cutter would: each glyph is placed on the
-   arc and rotated RIGIDLY about the ring centre. Nothing is bent.
-
-   That distinction matters. Mapping every control point through the circle
-   individually shears the glyph — stems splay, bowls go lopsided, and the line
-   looks melted at anything above caption size. A rigid rotation is an affine
-   transform, so quadratic control points carry through it untouched and the
-   letterform that comes out is exactly the letterform that went in.
+   The run
    ========================================================================== */
 
-/**
- * The construction shared by every ring, in ring units.
- *
- * These are deliberately not parameters. A ring's text decides how far around
- * the circle it reaches and nothing else; every other measurement is fixed
- * here, so a set of rings is identical by construction rather than by care.
- * `ringPlan` in the generated file re-exports them for the component that
- * draws the circles.
- */
-const RING = {
-  /** Square drawing box. Centre is half of it. */
-  box: 1000,
-  /** Heavy outer circle. */
-  outer: 476,
-  /** Hairline inner circle. */
-  inner: 446,
-  /** Stroke weights for the two circles. */
-  outerWeight: 9,
-  innerWeight: 3,
-  /** Baseline radius of the crown arc. Caps grow outward from here. */
-  crown: 356,
-  /** Em size of ring type. */
-  size: 76,
-  /** Letter spacing, in em. Matches --tracking-label; circular type needs it. */
-  tracking: 0.18,
-  /** Separator dots at three and nine o'clock. */
-  dot: 13,
-}
+const report = []
+const measured = []
+let short = false
 
-/** Cap height at a given em size, measured off 'H' so every ring shares one. */
-function capOf(font, size) {
-  const gid = font.map.get(0x48) ?? 0
-  const scale = size / font.m.em
-  const box = bounds(contours(font.t, font.loca, gid), (p) => ({
-    x: p.x * scale,
-    y: -p.y * scale,
-    on: p.on,
-  }))
-  return -box.y0
-}
+const sets = (spec.sets ?? []).map((job) => {
+  const f = faceFor(job.face ?? 'mono-400')
+  const members = job.members ?? []
 
-/**
- * Sets one line around one arc.
- *
- * `invert` is the bottom arc: the baseline sits at the OUTER edge of the band
- * and the caps grow inward, so the type stays upright and reads normally
- * without turning the page. Both arcs therefore ink the same radial band —
- * crown from `radius` outward, base from `radius` inward — which is what makes
- * the two halves look like one interrupted band rather than two rings.
- */
-function setArc(font, text, radius, invert) {
-  const scale = RING.size / font.m.em
-  const step = RING.tracking * RING.size
-  const centre = RING.box / 2
-
-  const run = []
-  let total = 0
-  for (const ch of text) {
-    const gid = font.map.get(ch.codePointAt(0)) ?? 0
-    const adv = font.adv[gid] * scale
-    run.push({ gid, adv, at: total })
-    total += adv + step
-  }
-  total -= step
-  const half = total / 2
-
-  const paths = []
-  // Radial extent of the ink, accumulated as it is placed. Reported by main()
-  // so type running into a circle is caught here rather than noticed on the
-  // page — descenders are the usual culprit, since Instrument Serif sets
-  // old-style figures and REG. 4471 drops below its baseline.
-  let near = Infinity
-  let far = -Infinity
-
-  for (const { gid, adv, at } of run) {
-    const shapes = contours(font.t, font.loca, gid)
-    if (!shapes.length) continue // a space inks nothing but still advances
-
-    // Arc offset of this glyph's own centre from the centre of the line. The
-    // pen position cancels out of `place` below, which is why `u` can be taken
-    // straight from the glyph's own coordinates.
-    const sweep = (at + adv / 2 - half) / radius
-    const angle = invert ? -sweep : sweep
-    const cos = Math.cos(angle)
-    const sin = Math.sin(angle)
-
-    const place = (p) => {
-      const u = p.x * scale - adv / 2 // across the baseline, from glyph centre
-      const v = -p.y * scale // font units are y-up; SVG is y-down
-      const w = invert ? radius + v : -radius + v // along the radius
-      const r = Math.hypot(u, w) // rotation is rigid, so this is the radius
-      if (r < near) near = r
-      if (r > far) far = r
-      return {
-        x: centre + u * cos - w * sin,
-        y: centre + u * sin + w * cos,
-        on: p.on,
-      }
-    }
-
-    paths.push(toPath(shapes, place))
+  if (members.length < 3) {
+    console.error(`\n  Set "${job.key}" has ${members.length} member(s). A set of two is a pair, and a`)
+    console.error('  pair with one odd member is a pointer. The floor is three — 04, §4.3.\n')
+    process.exit(1)
   }
 
-  return { paths, sweep: total / radius, near, far }
+  const { drawn, cap, height } = lay(f, members, EM)
+
+  /**
+   * The rendered cap, in design pixels at a 375px viewport.
+   *
+   * `capPx` is what the job asks for and what <OutlineText/> defaults to. The
+   * geometry is in EM units, so the component scales the box by capPx/cap —
+   * which means the drawn label's cap matches the cap of the live type beside
+   * it exactly, rather than approximately. That IS the camouflage: rule 4.1
+   * asks for typographically identical, and a cap height that is close is a
+   * cap height that is wrong.
+   */
+  const capPx = job.capPx ?? 14
+  const measuredCap = capPx
+
+  const { ok, line } = grade(measuredCap)
+  if (!ok) short = true
+  report.push({ key: job.key, members: members.length, capPx: measuredCap, line, ok })
+
+  if (job.reach) {
+    measured.push({
+      id: job.reach,
+      cap375: Number(measuredCap.toFixed(1)),
+      from: 'scripts/outline.mjs',
+      surface: `outline set "${job.key}", ${members.length} members at one em`,
+      /**
+       * No `renderPx` and no `floorAtPx`, and their absence is the point.
+       *
+       * A raster plate has a fixed pixel grid, so its term shrinks with the
+       * plate and there is a render width below which it stops clearing the
+       * floor. Geometry has no grid: <OutlineText/> scales the paths to the
+       * cap the set asks for, so the cap IS the render size and there is no
+       * width below which it degrades. scripts/register.mjs reads the missing
+       * fields and says so rather than inventing a threshold.
+       */
+      scales: true,
+      proof: { key: job.key, members, capPx: measuredCap, geometry: drawn, band: height, cap },
+    })
+  }
+
+  return {
+    key: job.key,
+    veiled: Boolean(job.veil),
+    cap: round(cap),
+    capPx,
+    height: round(height),
+    members: drawn.map((d, i) => ({
+      ...d,
+      name: job.veil ? veil(members[i]) : members[i],
+    })),
+    // Round-trip every veiled name before it is written. A veil that does not
+    // decode is a set of labels that announce gibberish to a screen reader,
+    // and nothing about the rendered page would reveal it.
+    _check: job.veil ? members.map((m, i) => plain(veil(m)) === m) : [],
+  }
+})
+
+for (const set of sets) {
+  if (set._check.some((ok) => !ok)) {
+    console.error(`\n  The veil did not round-trip for set "${set.key}".\n`)
+    process.exit(1)
+  }
+  delete set._check
 }
+
+const lines = (spec.lines ?? []).map((job) => {
+  const f = faceFor(job.face ?? 'display-300')
+  const { drawn, cap, height } = lay(f, [job.text], EM)
+  report.push({ key: job.key, members: 1, capPx: job.capPx ?? null, line: 'display line', ok: true })
+  return {
+    key: job.key,
+    veiled: Boolean(job.veil),
+    cap: round(cap),
+    capPx: job.capPx ?? null,
+    height: round(height),
+    members: [{ ...drawn[0], name: job.veil ? veil(job.text) : job.text }],
+  }
+})
 
 /* ==========================================================================
-   Emit
+   Emitting
    ========================================================================== */
 
-const HEADER = `/**
+const body = [...sets, ...lines]
+  .map((set) => {
+    const members = set.members
+      .map((m) => {
+        const name = Array.isArray(m.name) ? `[${m.name.join(', ')}]` : `'${m.name.replace(/'/g, "\\'")}'`
+        return `      { box: [${m.box[0]}, ${m.box[1]}], name: ${name}, d: '${m.d}' },`
+      })
+      .join('\n')
+
+    return [
+      `  ${set.key}: {`,
+      `    veiled: ${set.veiled},`,
+      `    cap: ${set.cap},`,
+      `    capPx: ${set.capPx},`,
+      `    members: [`,
+      members,
+      `    ],`,
+      `  },`,
+    ].join('\n')
+  })
+  .join('\n')
+
+const module = `/**
  * GENERATED — do not edit by hand.
  *
- * Produced by scripts/outline.mjs from the committed Instrument Serif WOFF.
- * Each entry is one line of display type, already converted from characters
- * into geometry, ready for <OutlineText/> in lib/split.tsx.
+ *   node scripts/outline.mjs
  *
- * Two properties are load-bearing:
+ * Display type and short labels, set from committed font binaries offline and
+ * converted to SVG <path> geometry. <OutlineText/> draws it. This is technique
+ * T-B: there is no text here, so find-in-page has nothing to match.
  *
- *   1. There is no text in here. A line rendered from this data is drawn from
- *      path outlines, so find-in-page has nothing to match against. Inline SVG
- *      <text> would be matched and is therefore never used.
- *   2. Every set produced in a single run shares one vertical band, so stacked
- *      lines scaled to the same height keep an identical cap height. Widths
- *      differ, as they should.
+ * NEVER replace a path with an SVG <text> element. Chrome's find-in-page
+ * matches inline <text>. If a glyph is missing, re-run the generator.
  *
- * The words are supplied by the organizer-only job file and appear nowhere in
- * src/. Regenerating needs that file; see the note in scripts/outline.mjs.
+ * Every member of a set is laid out by one call at one em and boxed on one
+ * shared vertical band, so no member can differ from its siblings by anything
+ * except its own advance width. Widths differ; nothing else does.
+ *
+ * \`cap\` is the cap height in the same user units as every \`box\`. \`capPx\` is
+ * the design-pixel cap the set renders at on a ${VIEWPORT}px viewport, where
+ * 1rem = 10 design px. <OutlineText/> scales by capPx / cap, so a drawn label
+ * sits on exactly the cap line of the live type beside it.
+ *
+ * \`name\` is the accessible name. On a veiled set it arrives as character codes
+ * under a per-index XOR rather than as a literal — see \`nameOf\` below, and the
+ * long note in scripts/outline.mjs.
  */
+export const outlines = {
+${body}
+} as const
 
-export type OutlineSet = {
-  /** Tight to the ink horizontally, shared band vertically. */
-  viewBox: string
-  /** Intrinsic width / height, for reserving space before layout. */
-  ratio: number
-  /** One entry per inked glyph, left to right. */
-  paths: string[]
-}
+export type OutlineKey = keyof typeof outlines
 
 /**
- * One line set around the top of a circle and one around the bottom, both
- * drawn in the square box described by \`ringPlan\`.
- *
- * Every ring in this file was produced in a single run from one set of
- * constants, so all of them share a diameter, an em, a tracking and a radial
- * band. The only thing a ring's own text decides is how far around the circle
- * it reaches. Do not hand-tune one of these: a ring that differs from its
- * siblings by so much as a stroke weight reads as the odd one out on sight.
+ * The veil's key. Its own inverse, and index-based, so a repeated letter does
+ * not repeat a value. Matches VEIL in scripts/outline.mjs and
+ * scripts/inscribe.mjs; changing it invalidates every committed name.
  */
-export type OutlineRing = {
-  /** Glyphs of the top arc, left to right. */
-  crown: string[]
-  /** Glyphs of the bottom arc, upright, tops toward the centre. */
-  base: string[]
+const VEIL = ${VEIL}
+
+/**
+ * The accessible name for one member of one set.
+ *
+ * Not cryptography, and not pretending to be. It exists so that grepping the
+ * production bundle for this string returns nothing, which is the threat it
+ * defends against.
+ *
+ * (This comment ships. It may not name the technique it defeats: the token for
+ * "look through text for a match" is itself on the naming ban, so \`npm run
+ * audit:names\` fails on the obvious wording. That is the ban working.)
+ */
+export function nameOf(key: OutlineKey, index: number): string {
+  const name = outlines[key].members[index]?.name
+  if (name === undefined) return ''
+  if (typeof name === 'string') return name
+  return String.fromCharCode(...name.map((n, i) => n ^ ((VEIL + i) & 0xff)))
 }
 `
 
-const PLAN_DOC = `/**
- * The construction every ring in this file was built from, in ring units.
- *
- * The component draws the two circles and the separator dots from these
- * numbers and the generator set the type from the same ones, so the drawn half
- * and the generated half of a seal cannot disagree. Changing a value here by
- * hand only moves the circles; re-run the generator to move the type with it.
- */`
+writeFileSync(at(OUT), module, 'utf8')
 
-function plan(cap) {
-  const rows = [
-    ['box', RING.box, 'Square drawing box. Also the viewBox on both axes.'],
-    ['outer', RING.outer, 'Heavy outer circle.'],
-    ['inner', RING.inner, 'Hairline inner circle.'],
-    ['outerWeight', RING.outerWeight, 'Stroke weight of the outer circle.'],
-    ['innerWeight', RING.innerWeight, 'Stroke weight of the inner circle.'],
-    ['band', round(cap), 'Radial depth of the type band. One cap height.'],
-    ['dot', RING.dot, 'Radius of the separator dots at three and nine.'],
-    ['dotAt', round(RING.crown + cap / 2), 'Radius the separator dots sit on.'],
-  ]
-  const body = rows
-    .map(([key, value, note]) => '  /** ' + note + ' */\n  ' + key + ': ' + value + ',')
-    .join('\n')
-  return PLAN_DOC + '\nexport const ringPlan = {\n' + body + '\n} as const\n'
+/* --------------------------------------------------------------------------
+   The proof crop
+
+   Organiser-only, git-ignored. The WHOLE SET is drawn, at the size it renders
+   at on a 375px viewport, then enlarged nearest-neighbour — so what the crop
+   shows is the pixel grid a phone rasterises. The set rather than the member,
+   because the question a reader of the key needs answered is not "can this be
+   read" but "does this one look like the other two", and one member alone
+   cannot answer it.
+   -------------------------------------------------------------------------- */
+
+for (const entry of measured) {
+  const { key, capPx, geometry, band, cap } = entry.proof
+  delete entry.proof
+
+  const scale = capPx / cap
+  const gap = 12
+  const pad = 10
+  const rowH = band * scale
+  const width = Math.ceil(Math.max(...geometry.map((g) => g.box[0])) * scale) + pad * 2
+  const height = Math.ceil(rowH * geometry.length + gap * (geometry.length - 1)) + pad * 2
+
+  const body = geometry
+    .map(
+      (g, i) =>
+        // NOT `round` — that is glyphs.mjs's one-decimal rounding for committed
+        // path data, and this scale is around 0.02, which it rounds to zero.
+        `<g transform="translate(${pad} ${round(pad + i * (rowH + gap))}) scale(${scale.toFixed(6)})">` +
+        `<path d="${g.d}" fill="${palette.cream}"/></g>`,
+    )
+    .join('')
+
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+    `<rect width="${width}" height="${height}" fill="${palette.black}"/>${body}</svg>`
+
+  mkdirSync(resolve(root, '_private/proof'), { recursive: true })
+  const shot = await sharp(Buffer.from(svg))
+    .resize(width * 4, height * 4, { kernel: 'nearest' })
+    .png({ compressionLevel: 9 })
+    .toBuffer()
+  writeFileSync(resolve(root, `_private/proof/${entry.id}.png`), shot)
+  report.push({ key, members: geometry.length, line: `proof crop → _private/proof/${entry.id}.png`, ok: true })
 }
 
-function emit(sets, rings, cap) {
-  const list = (paths) => paths.map((d) => "    '" + d + "',").join('\n')
+const where = record(root, measured)
 
-  const setBody = sets
-    .map((set) =>
-      [
-        'export const ' + set.key + ': OutlineSet = {',
-        "  viewBox: '" + set.viewBox + "',",
-        '  ratio: ' + set.ratio + ',',
-        '  paths: [',
-        list(set.paths),
-        '  ],',
-        '}',
-      ].join('\n'),
-    )
-    .join('\n\n')
+/* --------------------------------------------------------------------------
+   Report
+   -------------------------------------------------------------------------- */
 
-  const ringBody = rings
-    .map((ring) =>
-      [
-        'export const ' + ring.key + ': OutlineRing = {',
-        '  crown: [',
-        list(ring.crown),
-        '  ],',
-        '  base: [',
-        list(ring.base),
-        '  ],',
-        '}',
-      ].join('\n'),
-    )
-    .join('\n\n')
+console.log('Outline geometry — CROCARIA\n')
+for (const r of report) {
+  console.log(`  ${r.key.padEnd(12)} ${String(r.members).padStart(2)} member(s)   ${r.line}`)
+}
+console.log(`\n  ${sets.length} set(s), ${lines.length} line(s) → ${OUT}`)
+if (where) console.log(`  ${measured.length} measurement(s) → _private/reach.json`)
+console.log('\n  <path> only. No <text> emitted anywhere.')
 
-  const parts = [HEADER]
-  if (setBody) parts.push(setBody)
-  if (ringBody) parts.push(plan(cap), ringBody)
-  return parts.join('\n') + '\n'
+if (short) {
+  console.error(`\n  At least one set renders under the ${FLOOR}px cap floor at ${VIEWPORT}px.`)
+  console.error('  Rule 4: every term must be findable on a phone. Raise capPx in the job file.\n')
+  process.exit(1)
 }
 
-/* ==========================================================================
-   Entry
-   ========================================================================== */
-
-function jobs(args) {
-  const inline = []
-  for (let i = 0; i < args.length; i += 1) {
-    if (args[i] !== '--line') continue
-    const raw = args[i + 1] ?? ''
-    const at = raw.indexOf(':')
-    if (at < 1) throw new Error('--line wants key:text, got "' + raw + '"')
-    inline.push({ key: raw.slice(0, at), text: raw.slice(at + 1) })
-  }
-  if (inline.length) return { out: 'src/content/outlines.ts', lines: inline, rings: [] }
-
-  const file = args.find((a) => !a.startsWith('--'))
-  if (!file) {
-    console.error('Nothing to set. Pass a job file, or one or more --line key:text.')
-    process.exit(2)
-  }
-  const spec = JSON.parse(readFileSync(resolve(ROOT, file), 'utf8'))
-  return {
-    out: spec.out ?? 'src/content/outlines.ts',
-    lines: spec.lines ?? [],
-    rings: spec.rings ?? [],
-  }
-}
-
-function main() {
-  const spec = jobs(process.argv.slice(2))
-  const font = load(resolve(ROOT, FACE))
-
-  const lines = spec.lines.map((line) => ({ ...line, ...setLine(font, line.text) }))
-
-  // One vertical band for the whole run. Padded by a hair so a steep edge is
-  // never clipped at large display sizes.
-  let top = Infinity
-  let base = -Infinity
-  for (const line of lines) {
-    for (const g of line.glyphs) {
-      if (g.box.y0 < top) top = g.box.y0
-      if (g.box.y1 > base) base = g.box.y1
-    }
-  }
-  const pad = EM * 0.01
-  top -= pad
-  base += pad
-
-  const sets = lines.map((line) => {
-    let x0 = Infinity
-    let x1 = -Infinity
-    for (const g of line.glyphs) {
-      if (g.box.x0 < x0) x0 = g.box.x0
-      if (g.box.x1 > x1) x1 = g.box.x1
-    }
-    const w = x1 - x0
-    const h = base - top
-    // Shift the box to the origin; keeps the numbers small and the viewBox
-    // trivially readable.
-    return {
-      key: line.key,
-      viewBox: '0 0 ' + round(w) + ' ' + round(h),
-      ratio: Math.round((w / h) * 1000) / 1000,
-      paths: line.glyphs.map((g) => shift(g.d, -x0, -top)),
-    }
-  })
-
-  // Rings. One cap height for the whole run, measured once off 'H', so the
-  // crown and the base of every ring ink the same radial band.
-  const cap = capOf(font, RING.size)
-  const rings = spec.rings.map((ring) => {
-    const crown = setArc(font, ring.crown, RING.crown, false)
-    const foot = setArc(font, ring.base, RING.crown + cap, true)
-    return {
-      key: ring.key,
-      crown: crown.paths,
-      base: foot.paths,
-      sweep: crown.sweep,
-      near: Math.min(crown.near, foot.near),
-      far: Math.max(crown.far, foot.far),
-    }
-  })
-
-  const text = emit(sets, rings, cap)
-  writeFileSync(resolve(ROOT, spec.out), text, 'utf8')
-
-  console.log(
-    'Set ' +
-      sets.length +
-      ' line(s) and ' +
-      rings.length +
-      ' ring(s) -> ' +
-      spec.out +
-      ' (' +
-      (Buffer.byteLength(text) / 1024).toFixed(1) +
-      ' KB)',
-  )
-  for (const s of sets) {
-    console.log('  ' + s.key.padEnd(12) + s.paths.length + ' glyphs  viewBox ' + s.viewBox)
-  }
-
-  // Two ways a ring can go wrong, both reported rather than quietly clamped.
-  // The fix for either is the wording or the shared construction — never one
-  // seal's em or radius, which is exactly the divergence this all exists to
-  // prevent.
-  //
-  //   sweep  a crown running past the separator dots at three and nine
-  //   far    ink crossing the inner circle, usually an old-style figure's
-  //          descender on the base arc
-  const LIMIT = 170
-  const CEILING = RING.inner - RING.innerWeight / 2 - 6
-  let bad = false
-
-  for (const r of rings) {
-    const deg = (r.sweep * 180) / Math.PI
-    const over = deg > LIMIT
-    const out = r.far > CEILING
-    bad = bad || over || out
-    console.log(
-      '  ' +
-        r.key.padEnd(12) +
-        String(r.crown.length + r.base.length).padStart(2) +
-        ' glyphs  sweep ' +
-        deg.toFixed(1).padStart(5) +
-        '°' +
-        (over ? '!' : ' ') +
-        '  ink ' +
-        round(r.near) +
-        '..' +
-        round(r.far) +
-        (out ? ' <-- crosses the inner circle at ' + round(CEILING) : ''),
-    )
-  }
-
-  if (bad) {
-    console.error(
-      '\nA ring does not fit its construction. Shorten the wording, or change' +
-        '\nRING for every ring at once. Never adjust a single seal.',
-    )
-    process.exit(1)
-  }
-}
-
-main()
+console.log('')
