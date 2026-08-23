@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Northbound outfits high-altitude expeditions from Chamonix and across the greater ranges. Guided ascents, permits and logistics since 2011."
+    />
+    <meta name="theme-color" content="#0b0f0e" />
+
+    <!--
+      The hero plate, fetched alongside the module graph rather than after it.
+      It is the largest-contentful paint on the home page, so waiting for React
+      to mount before the request even starts costs the whole of LCP.
+
+      imagesrcset/imagesizes mirror what <Plate/> renders, so a 1x display
+      still preloads the 1200 and the preload is the request the element then
+      reuses. If those ever disagree the browser fetches twice, which is worse
+      than not preloading at all — both sides come from content/plates.ts, so
+      re-check here if the widths in that file change.
+    -->
+    <link
+      rel="preload"
+      as="image"
+      type="image/webp"
+      href="/img/hero-01-2400.webp"
+      imagesrcset="/img/hero-01-1200.webp 1200w, /img/hero-01-2400.webp 2400w"
+      imagesizes="100vw"
+      fetchpriority="high"
+    />
+    <title>Northbound — High-Altitude Expedition Outfitting</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

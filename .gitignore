@@ -1,0 +1,36 @@
+# Nuxt dev / build outputs
+.nuxt
+.nitro
+.cache
+.output
+.data
+dist
+
+# Node dependencies
+node_modules
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Hosting
+.vercel
+.netlify
+
+# Organiser-only material. Must never enter git history.
+_private/
+
+# Editor / OS
+*.local
+.DS_Store
+Thumbs.db
+.idea
+.fleet
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+logs
+*.log
+npm-debug.log*

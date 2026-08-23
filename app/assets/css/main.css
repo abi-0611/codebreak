@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   THE FLUID REM ENGINE — prompts/REFERENCE-TEARDOWN.md §2
+
+   1rem = 10 design pixels. A thing that is 80px wide in the design file is
+   8rem. The layout scales linearly with viewport width and freezes at 2700px,
+   where the 15px clamp bites.
+
+   At a 1440px viewport the root font computes to exactly 8px. That is the
+   check: 1440 / 1800 * 10 = 8. Everything downstream — the Tailwind spacing
+   remap, every type size, every hairline offset — is wrong if that number is
+   wrong.
+--------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    --size: 375;    /* mobile design width  */
+    --clamp: 15px;  /* hard ceiling on root size */
+    --global-font-size: clamp(5px, calc((100vw / var(--size)) * 10), var(--clamp));
+
+    /* -----------------------------------------------------------------------
+       PALETTE RECORD — teardown §4.
+
+       These are documentation, not the consumption path. Application code
+       reaches colour through Tailwind utilities only (CLAUDE.md: no inline
+       hex, anywhere). tokens/palette.mjs is the definition site and feeds both
+       the Tailwind theme and scripts/contrast.mjs; that script also reads the
+       block below and fails if the two ever drift apart.
+    ----------------------------------------------------------------------- */
+    --color-black: #000000;
+    --color-white: #FFFFFF;
+    --color-cream: #ECE7E0;
+    --color-gold: #FFBC09;
+    --color-brown: #962817;
+    --color-brown-dark: #47140B;
+    --color-brown-darker: #150604;
+    --color-brown-deepest: #2F0E09;
+
+    /* -----------------------------------------------------------------------
+       RECORDED DEVIATION FROM THE REFERENCE — phase 1, task 1.6.
+
+       The reference sets its footer meta copy in --color-brown (#962817) on
+       black. Measured, that pairing is 2.61:1 and fails WCAG AA for text.
+
+       We keep #962817 exactly as measured wherever it is a rule, a hairline or
+       another non-text edge, and lift it to the value below wherever it is
+       RUNNING TEXT. #DC3F27 is the nearest hue-preserving tone that clears
+       4.5:1 on #000000 (4.78:1) and on #150604 (4.51:1).
+
+       Not approved on #2F0E09 (4.03:1) or #47140B — those grounds take cream.
+
+       This is the one place the build knowingly diverges from the reference.
+       Rule 9's sibling: material nobody can read is material that is not
+       there. Signed off again in prompts/08-qa-and-audit.md.
+    ----------------------------------------------------------------------- */
+    --color-brown-lifted: #DC3F27;
+  }
+
+  @media (min-width: 650px) {
+    :root {
+      --size: 1800; /* desktop design width */
+    }
+  }
+
+  html {
+    font-size: var(--global-font-size);
+    font-variant-ligatures: common-ligatures;
+    -webkit-text-size-adjust: none;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: #000;
+    color: #ECE7E0;
+    font-family: 'Host Grotesk', sans-serif;
+    font-optical-sizing: auto;
+    font-size: 1.8rem;
+    font-weight: 400;
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  /* Lenis takes the document height over once it initialises. Teardown §1. */
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   LAYOUT PRIMITIVES — teardown §6.
+
+   Pulled forward from phase 2 because task 1.4's header shell is written
+   against `.site-max --full`, and a container that only half exists is worse
+   than none. Values are the measured ones; phase 2 adds the type ramp on top.
+--------------------------------------------------------------------------- */
+
+@layer components {
+  /* The only container on the site. There is no second one. */
+  .site-max {
+    --padding: 2rem;
+    width: 100%;
+    max-width: 180rem;
+    margin-inline: auto;
+    padding-inline: var(--padding);
+  }
+
+  /* Nesting is safe: the inner one contributes no padding. */
+  .site-max .site-max {
+    padding-inline: 0;
+  }
+
+  @media (min-width: 650px) {
+    .site-max        { --padding: 22rem; }
+    .site-max.--s    { --padding: 26.5rem; }  /* narrowest content column */
+    .site-max.--m    { --padding: 20rem; }
+    .site-max.--l    { --padding: 15rem; }
+    .site-max.--full { --padding: 0rem; }     /* edge to edge — the header */
+  }
+
+  /* Overlay without absolute positioning: the parent still sizes to its
+     tallest child, which `absolute inset-0` cannot do. */
+  .stack {
+    display: grid;
+  }
+  .stack > * {
+    grid-area: 1 / 1;
+  }
+  .stack.--c {
+    place-items: center;
+  }
+
+  /* svh second so mobile browser chrome does not cause the jump. */
+  .h-full-screen {
+    height: 100vh;
+    height: 100svh;
+  }
+}

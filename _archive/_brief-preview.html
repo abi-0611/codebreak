@@ -1,0 +1,515 @@
+<title>Crocaria Build Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300..800&family=Host+Grotesk:wght@300..700&family=Roboto+Mono:wght@400..600&display=swap">
+
+<style>
+  /* ------------------------------------------------------------------
+     Single-theme by intent. The subject is a black-ground site with no
+     light mode; rendering this brief in one would misrepresent it.
+     Every colour is therefore painted explicitly from a token.
+     Palette values are the ones measured off the reference.
+     ------------------------------------------------------------------ */
+  :root {
+    --ground:   #000000;
+    --ground-2: #150604;   /* brown-darker  */
+    --panel:    #2F0E09;   /* brown-deepest */
+    --rule:     #47140B;   /* brown-dark — every hairline */
+    --text:     #ECE7E0;   /* cream */
+    --accent:   #FFBC09;   /* gold */
+    --meta:     #C4553A;   /* the lifted #962817, per the recorded AA deviation */
+
+    --display: "Funnel Display", "Optima", Georgia, serif;
+    --body:    "Host Grotesk", "Helvetica Neue", Arial, sans-serif;
+    --mono:    "Roboto Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --col: 68rem;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 1.05rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- bands: the reference's own rhythm — hairline between every one --- */
+  .band {
+    border-top: 1px solid var(--rule);
+    padding: 4.5rem 1.5rem;
+    background: var(--ground);
+  }
+  .band.alt { background: var(--ground-2); }
+  .band:first-of-type { border-top: 0; }
+
+  .col { max-width: var(--col); margin-inline: auto; }
+  .col.narrow { max-width: 46rem; }
+
+  /* --- type --- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 500;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--meta);
+    margin: 0 0 1.5rem;
+    display: flex;
+    align-items: baseline;
+    gap: .9rem;
+  }
+  .eyebrow .n { color: var(--accent); }
+
+  h1 {
+    font-family: var(--display);
+    font-weight: 300;
+    font-size: clamp(2.9rem, 8vw, 5.5rem);
+    line-height: .82;
+    margin: 0 0 1.5rem;
+    text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--display);
+    font-weight: 300;
+    font-size: clamp(1.9rem, 4vw, 2.9rem);
+    line-height: 1.02;
+    margin: 0 0 1.4rem;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: .82rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text);
+    margin: 2.75rem 0 1rem;
+  }
+  p { margin: 0 0 1.1rem; max-width: 62ch; }
+  .lede { font-size: 1.25rem; line-height: 1.4; max-width: 40ch; }
+  strong { font-weight: 600; color: var(--text); }
+  em { color: var(--accent); font-style: normal; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  code {
+    font-family: var(--mono);
+    font-size: .86em;
+    color: var(--accent);
+    background: var(--panel);
+    padding: .12em .42em;
+    border-radius: 2px;
+  }
+  pre {
+    font-family: var(--mono);
+    font-size: .82rem;
+    line-height: 1.7;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1.15rem 1.3rem;
+    overflow-x: auto;
+    margin: 1.4rem 0;
+    color: var(--text);
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  pre .c { color: var(--meta); }
+  pre .v { color: var(--accent); }
+
+  /* --- tables --- */
+  .scroll { overflow-x: auto; margin: 1.5rem 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .88rem;
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: .68rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--meta);
+    text-align: left;
+    padding: .55rem .9rem .55rem 0;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  td {
+    padding: .7rem .9rem .7rem 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  td.mono, .mono { font-family: var(--mono); font-size: .82rem; }
+  td.n { color: var(--accent); font-family: var(--mono); font-size: .8rem; white-space: nowrap; }
+
+  /* --- swatches --- */
+  .sw {
+    display: inline-block;
+    width: 2.4rem; height: 1.1rem;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    vertical-align: -.2rem;
+    margin-right: .6rem;
+  }
+
+  /* --- specimen rows --- */
+  .spec { border-top: 1px solid var(--rule); padding: 1.1rem 0; display: grid; gap: .35rem; }
+  .spec:last-child { border-bottom: 1px solid var(--rule); }
+  .spec .tag { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--meta); }
+  .s-display { font-family: var(--display); font-weight: 300; font-size: 3.1rem; line-height: .75; }
+  .s-h2 { font-family: var(--display); font-weight: 300; font-size: 1.9rem; line-height: 1; }
+  .s-h3 { font-family: var(--mono); font-weight: 400; font-size: 1rem; text-transform: uppercase; line-height: 1; }
+  .s-lg { font-family: var(--body); font-size: 1.15rem; line-height: 1.2; }
+  .s-md { font-family: var(--body); font-size: .95rem; line-height: 1.4; }
+  .s-cap { font-family: var(--mono); font-weight: 500; font-size: .78rem; line-height: 1.6; text-transform: uppercase; }
+
+  /* --- rules list --- */
+  ol.rules { list-style: none; counter-reset: r; padding: 0; margin: 0; }
+  ol.rules li {
+    counter-increment: r;
+    border-top: 1px solid var(--rule);
+    padding: .95rem 0 .95rem 3.2rem;
+    position: relative;
+    max-width: 64ch;
+  }
+  ol.rules li:last-child { border-bottom: 1px solid var(--rule); }
+  ol.rules li::before {
+    content: counter(r, decimal-leading-zero);
+    position: absolute; left: 0; top: 1.05rem;
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .08em;
+    color: var(--accent);
+  }
+  ol.rules b { font-weight: 600; }
+
+  /* --- callout --- */
+  .note {
+    border: 1px solid var(--rule);
+    background: var(--panel);
+    border-radius: 3px;
+    padding: 1.3rem 1.5rem;
+    margin: 1.8rem 0;
+    max-width: 62ch;
+  }
+  .note p:last-child { margin-bottom: 0; }
+  .note .tag {
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--accent); display: block; margin-bottom: .6rem;
+  }
+
+  .grid2 { display: grid; gap: 2.5rem; grid-template-columns: 1fr; }
+  @media (min-width: 720px) { .grid2 { grid-template-columns: 1fr 1fr; } }
+
+  footer.end {
+    border-top: 1px solid var(--rule);
+    padding: 2.5rem 1.5rem 4rem;
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--meta);
+  }
+  footer.end .col { display: flex; flex-wrap: wrap; gap: .8rem 1.6rem; }
+</style>
+
+<!-- ============================================================ -->
+<section class="band">
+  <div class="col">
+    <p class="eyebrow"><span class="n">Round 1</span> <span>Symposium technical event</span></p>
+    <h1>Crocaria</h1>
+    <p class="lede">A fidelity replication of the reference design, wearing the identity of a heritage saffron house.</p>
+    <p style="margin-top:2rem">This brief covers the <strong>design replication and the build method</strong>. The clue
+      placements are deliberately not on this page — they are the answer key, and this
+      link is shareable. They live only in <code>prompts/04-clue-architecture.md</code>
+      and <code>_private/KEY.md</code> in the repo.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="band alt">
+  <div class="col">
+    <p class="eyebrow"><span class="n">01</span> <span>The brief</span></p>
+    <h2>The design is theirs.<br>The identity is ours.</h2>
+    <div class="grid2">
+      <div>
+        <p>Every layout, colour, type size, spacing value, component, interaction and
+          scroll behaviour in the reference is reproduced exactly. What changes is the
+          name, the wordmark, the copy, the imagery and the outbound links.</p>
+        <p>The reference is the live marketing site of a real DeFi protocol. Shipping a
+          public page carrying that name, its investors' and auditors' logos and links
+          to its real application would impersonate a real financial company — which is
+          also the exact shape of a phishing site, and would leave participants
+          believing the event site is a real financial product.</p>
+        <p><em>Nothing visual is lost.</em> Section for section, component for component,
+          curve for curve, the two sites are the same object.</p>
+      </div>
+      <div>
+        <h3 style="margin-top:0">Why a saffron house</h3>
+        <p>The reference's entire art direction already <em>is</em> the saffron crocus —
+          botanical engravings, heraldic seals, crocus macro photography in the pinned
+          scene, an oxblood-and-gold palette, a token named "Spice".</p>
+        <p>A heritage saffron house maps onto every single section with nothing invented
+          and nothing dropped. The vault ledger becomes a lot ledger; the token
+          medallion becomes a provenance medallion; the audit seal becomes an assay
+          seal. The camouflage is native, which is the whole reason this reference was
+          the right one to replicate.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="band">
+  <div class="col">
+    <p class="eyebrow"><span class="n">02</span> <span>Measured, not estimated</span></p>
+    <h2>The design system</h2>
+    <p>Every value below was read off the live reference in a real browser and is
+      recorded in <code>prompts/REFERENCE-TEARDOWN.md</code>. That file is the source of
+      truth: when intuition and the file disagree, the file wins.</p>
+
+    <h3>The fluid rem engine</h3>
+    <p>The single most important thing in the build, and the reason the site feels like
+      one designed object at every width.</p>
+<pre><code>:root {
+  <span class="c">--size</span>: <span class="v">375</span>;                  <span class="c">/* mobile design width */</span>
+  <span class="c">--clamp</span>: <span class="v">15px</span>;
+  <span class="c">--global-font-size</span>: clamp(5px, calc((100vw / var(--size)) * 10), var(--clamp));
+}
+<span class="c">@media</span> (min-width: 650px) { :root { <span class="c">--size</span>: <span class="v">1800</span> } }
+html { font-size: var(--global-font-size) }</code></pre>
+    <p><strong>1rem = 10 design pixels.</strong> Tailwind's spacing scale is remapped to
+      match (<code>n / 10 rem</code>), so utility numbers <em>are</em> design pixels:
+      <code>.p-20</code> compiles to <code>padding: 2rem</code>. At a 1440px viewport the
+      root font must compute to exactly <code>8px</code> — verify that before writing a
+      single spacing value, because everything after it inherits the error.</p>
+
+    <h3>One breakpoint</h3>
+    <p><code>s: 650px</code>, plus <code>max-s</code>, plus two capability variants the
+      reference uses instead of <code>hover:</code> — <code>has-hover:</code> and
+      <code>has-not-hover:</code>. There is no tablet breakpoint; the rem engine handles it.</p>
+
+    <h3>Colour</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Token</th><th>Hex</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td class="mono"><span class="sw" style="background:#000000"></span>black</td><td class="mono">#000000</td><td>page ground</td></tr>
+          <tr><td class="mono"><span class="sw" style="background:#ECE7E0"></span>cream</td><td class="mono">#ECE7E0</td><td>all body copy and headlines</td></tr>
+          <tr><td class="mono"><span class="sw" style="background:#FFBC09"></span>gold</td><td class="mono">#FFBC09</td><td>the accent — state only, never a heading colour</td></tr>
+          <tr><td class="mono"><span class="sw" style="background:#962817"></span>brown</td><td class="mono">#962817</td><td>mid rules, footer meta</td></tr>
+          <tr><td class="mono"><span class="sw" style="background:#47140B"></span>brown-dark</td><td class="mono">#47140B</td><td>every hairline on the site</td></tr>
+          <tr><td class="mono"><span class="sw" style="background:#150604"></span>brown-darker</td><td class="mono">#150604</td><td>alternating section ground</td></tr>
+          <tr><td class="mono"><span class="sw" style="background:#2F0E09"></span>brown-deepest</td><td class="mono">#2F0E09</td><td>card / panel fill</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>There is no grey in this palette. Every 1px rule on the site is
+      <code>#47140B</code> — no exceptions, and the eye notices a missing one.</p>
+
+    <div class="note">
+      <span class="tag">Recorded deviation — 1 of 2</span>
+      <p>The reference sets running footer copy in <code>#962817</code> on black, roughly
+        3.0:1, which fails WCAG AA. We keep the raw value for hairlines and decorative
+        rules, and lift running text to the nearest tone clearing 4.5:1. This page uses
+        the lifted value for its own meta text.</p>
+    </div>
+
+    <h3>Type — three families, eight classes</h3>
+    <p>Funnel Display 300 for display and headings, Host Grotesk for body, Roboto Mono
+      for labels, data, navigation and captions. <strong>Letter-spacing is
+      <code>normal</code> everywhere</strong> — adding tracking is the fastest way to make
+      the replica read as a lookalike rather than a copy.</p>
+
+    <div class="spec"><span class="tag">type-display-xl · 5.85rem → 10rem · lh .75</span><span class="s-display">The Red Harvest</span></div>
+    <div class="spec"><span class="tag">type-h2 · 2.8rem → 4.9rem · lh 1</span><span class="s-h2">Assay and certification</span></div>
+    <div class="spec"><span class="tag">type-h3 · 2rem → 2.5rem · uppercase</span><span class="s-h3">Crocin index</span></div>
+    <div class="spec"><span class="tag">type-body-lg · 1.8rem → 2.4rem · lh 1.2</span><span class="s-lg">Provenance for every thread.</span></div>
+    <div class="spec"><span class="tag">type-body-md · 1.6rem → 1.8rem · lh 1.4</span><span class="s-md">Every lot is weighed, assayed against the crocin standard, and struck with the house seal before it enters bonded storage.</span></div>
+    <div class="spec"><span class="tag">type-caption · 1.3rem → 1.4rem · mono 500</span><span class="s-cap">Total bonded — 4,180 kg</span></div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="band alt">
+  <div class="col">
+    <p class="eyebrow"><span class="n">03</span> <span>Eleven sections, in order</span></p>
+    <h2>The home page</h2>
+    <p>Measured at a 1440&times;860 viewport; the reference's <code>&lt;article&gt;</code>
+      totals 9,331px. Every section after the hero carries
+      <code>border-t border-brown-dark</code> — there is not one exception.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>#</th><th>Section</th><th>Ground</th><th>H</th><th>What it is</th></tr></thead>
+        <tbody>
+          <tr><td class="n">00</td><td>GL backdrop</td><td class="mono">—</td><td class="mono">686</td><td>three.js filament field, parallaxed</td></tr>
+          <tr><td class="n">01</td><td>Hero</td><td class="mono">black</td><td class="mono">1067</td><td>display headline, pill CTA, stats box, partner marquee</td></tr>
+          <tr><td class="n">02</td><td>The House Medallion</td><td class="mono">black</td><td class="mono">813</td><td>3D minted disc, rotates on scroll</td></tr>
+          <tr><td class="n">03</td><td>The Lot Ledger</td><td class="mono">black</td><td class="mono">966</td><td>scrollable data table, paired origin chips</td></tr>
+          <tr><td class="n">04</td><td>Assay &amp; Certification</td><td class="mono">#150604</td><td class="mono">721</td><td>heraldic seal, first ground change</td></tr>
+          <tr><td class="n">05</td><td>The Season</td><td class="mono">black</td><td class="mono">2057</td><td><em>300vh pinned scene</em> — four discrete steps</td></tr>
+          <tr><td class="n">06</td><td>Held by the Guild</td><td class="mono">black</td><td class="mono">1017</td><td>extruded 3D mark, three service marks</td></tr>
+          <tr><td class="n">07</td><td>Dispatches</td><td class="mono">#150604</td><td class="mono">918</td><td>ornamental plate, card carousel (z-3)</td></tr>
+          <tr><td class="n">08</td><td>FAQ</td><td class="mono">black</td><td class="mono">747</td><td>hairline accordion, first row open</td></tr>
+          <tr><td class="n">09</td><td>Link tiles</td><td class="mono">black</td><td class="mono">544</td><td>2&times;2 grid, mono labels</td></tr>
+          <tr><td class="n">10</td><td>Footer</td><td class="mono">black</td><td class="mono">483</td><td>wordmark, socials, MENU accordion</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The signature interaction</h3>
+    <p>The pill button fills on hover and tap with a gold wipe whose edge is torn and
+      organic rather than straight — an SVG <code>feTurbulence</code> feeding a
+      <code>feDisplacementMap</code>, with GSAP animating the rect's width from 0 to 150%
+      while the displacement scale rises and falls. Get this one exactly right before
+      building anything else; it appears on every page.</p>
+    <p class="mono" style="color:var(--meta)">The filter id must be unique per instance,
+      or every pill on the page displaces in lockstep.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="band">
+  <div class="col">
+    <p class="eyebrow"><span class="n">04</span> <span>Method, not answers</span></p>
+    <h2>How six strings hide<br>in plain sight</h2>
+    <p>Six technical terms are concealed in the copy and imagery. Each must be
+      <strong>readable by a human</strong> and <strong>invisible to find-in-page</strong>.
+      There are exactly three ways to achieve that, and the reference site already ships
+      all three for ordinary art-direction reasons.</p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Technique</th><th>Method</th><th>Native to the reference as</th></tr></thead>
+        <tbody>
+          <tr><td class="n">T&#8209;A</td><td>Baked into raster artwork by an offline generator</td><td>its audits seal, its ornamental media plate, its botanical engravings</td></tr>
+          <tr><td class="n">T&#8209;B</td><td>Drawn as committed SVG outline geometry</td><td>its wordmark, a <code>mask-image</code> fed an inline SVG data-URI</td></tr>
+          <tr><td class="n">T&#8209;C</td><td>Rendered as a texture inside a WebGL scene</td><td>the engraved lettering around its 3D coin's rim</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Two traps worth stating plainly</h3>
+    <p><strong>Never use SVG <code>&lt;text&gt;</code>.</strong> Chrome's find-in-page
+      matches it, which would silently undo the entire technique.</p>
+    <p><strong>Per-character <code>&lt;span&gt;</code> splitting is not a defence.</strong>
+      Chrome normalises text across inline element boundaries before matching. It offers
+      no protection of any kind. It is an animation tool.</p>
+
+    <div class="note">
+      <span class="tag">Recorded deviation — 2 of 2</span>
+      <p>A line drawn as geometry cannot be selected, copied, translated by the browser,
+        or reflowed at large text settings. Every one carries <code>role="img"</code> and
+        an <code>aria-label</code>, so assistive technology announces it normally — a real
+        mitigation, but it does not restore selection, and nothing does. The technique is
+        confined to display type and short labels; it never touches running copy,
+        navigation or captions.</p>
+    </div>
+
+    <h3>Camouflage</h3>
+    <p>The clues are not hidden by being small or dim. They are hidden by being
+      <em>ordinary</em> — same face, same size, same weight, same colour as the material
+      beside them. Sets stay sets: six specimen labels, three service marks, four
+      noticeboard cards, each drawn by one function called N times. A member of a set
+      that differs is the member everyone looks at.</p>
+    <p>Twelve or more decoys are seeded through the copy, at least three of them baked
+      into artwork — otherwise "it's in a picture, therefore it's a clue" becomes the
+      entire solve. The saffron trade is unusually generous here: <em>thread</em>,
+      <em>index</em>, <em>buffer</em>, <em>port</em>, <em>docker</em> and <em>query</em>
+      are all real trade vocabulary and all read as stack components.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="band alt">
+  <div class="col">
+    <p class="eyebrow"><span class="n">05</span> <span>Run in order</span></p>
+    <h2>Nine phases</h2>
+    <p>Each phase assumes the previous one's artefacts exist. One phase per session;
+      phase 6 one <em>section</em> per prompt — that is the difference between a replica
+      and an approximation.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>#</th><th>File</th><th>Produces</th></tr></thead>
+        <tbody>
+          <tr><td class="n">—</td><td class="mono">REFERENCE-TEARDOWN.md</td><td>the measured spec — read before every phase</td></tr>
+          <tr><td class="n">00</td><td class="mono">00-MASTER.md</td><td>the brief, the ten rules, the definition of done</td></tr>
+          <tr><td class="n">01</td><td class="mono">01-foundation.md</td><td>Nuxt scaffold, the rem engine, Tailwind remap, audit scripts</td></tr>
+          <tr><td class="n">02</td><td class="mono">02-design-system.md</td><td>tokens, type ramp, every component, <code>/specimen</code></td></tr>
+          <tr><td class="n">03</td><td class="mono">03-motion-and-webgl.md</td><td>Lenis + GSAP wiring, the pinned scene, three GL scenes</td></tr>
+          <tr><td class="n">04</td><td class="mono">04-clue-architecture.md</td><td>the placements, the techniques, the decoys</td></tr>
+          <tr><td class="n">05</td><td class="mono">05-assets.md</td><td>offline generators — seals, plates, certificates, outlines</td></tr>
+          <tr><td class="n">06</td><td class="mono">06-build-home.md</td><td>the home page, section by section</td></tr>
+          <tr><td class="n">07</td><td class="mono">07-secondary-pages.md</td><td>eight routes, all resolving</td></tr>
+          <tr><td class="n">08</td><td class="mono">08-qa-and-audit.md</td><td>fidelity diff, a11y, perf, the clue audit</td></tr>
+          <tr><td class="n">09</td><td class="mono">09-deploy-and-ops.md</td><td>deploy + the event-day runbook</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The fidelity loop</h3>
+    <p>Used on every section: open the reference in one tab and the build in another,
+      scroll both to the same section, and read the same computed styles from both —
+      family, size, line-height, weight, colour, padding, border colour, rendered height.
+      Close the gap until the arrays match. <strong>Screenshots come last, not
+      first</strong>: an 8px spacing drift is invisible in a screenshot and obvious in a
+      computed style.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="band">
+  <div class="col">
+    <p class="eyebrow"><span class="n">06</span> <span>Non-negotiable</span></p>
+    <h2>The ten rules</h2>
+    <ol class="rules">
+      <li><b>Visual only.</b> No view-source clues, no comments, no <code>data-</code> attributes, no alt-text-only, no <code>opacity: 0</code>. If a sighted user browsing normally cannot see it, it is not a clue.</li>
+      <li><b>Find-in-page must fail.</b> The single most important technical requirement. A clue sitting in plain DOM text is a broken clue.</li>
+      <li><b>No puzzle tells.</b> No counters, no highlight colours, no easter-egg styling. A clue is typographically identical to the material around it.</li>
+      <li><b>Mobile-reachable.</b> Findable on a 375px phone. No hover-only reveals — anything gated behind interaction is gated behind a tap.</li>
+      <li><b>Stable once revealed.</b> Never tied to a precise scroll-scrub position. Reveal on enter, then stay.</li>
+      <li><b>No source leaks.</b> Private repo, production source maps off, and no filename, class or route containing a term.</li>
+      <li><b>Decoys are mandatory.</b> Twelve or more, at least three baked into artwork.</li>
+      <li><b>The site must actually work.</b> Real nav, real links, real responsive behaviour. No dead <code>href="#"</code>, no lorem ipsum.</li>
+      <li><b>Performance is fairness.</b> Under 2.5 MB, LCP under 2.5s on 4G. Every WebGL scene has a static fallback.</li>
+      <li><b>Cinematic, never at the cost of legibility.</b> One pinned scene, one parallaxed backdrop — the reference's exact budget.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="band alt">
+  <div class="col narrow">
+    <p class="eyebrow"><span class="n">07</span> <span>Before the event</span></p>
+    <h2>Definition of done</h2>
+    <p>Phase 8 signs off only on evidence, not assertions — every item recorded in
+      <code>_private/KEY.md</code> with screenshots.</p>
+    <ol class="rules">
+      <li>Every measured token matches, verified by computed style at 375px and 1440px.</li>
+      <li>All eleven sections present, with the hairline between each and the correct ground.</li>
+      <li>Find-in-page returns zero hits for all six terms, on every route, Chrome and Safari, desktop and mobile.</li>
+      <li>All six terms legible at 375px — cap height at least 7px, printed by the generator, not eyeballed.</li>
+      <li>Every clue survives <code>prefers-reduced-motion</code> and the WebGL static-fallback path.</li>
+      <li>Twelve or more decoys, three in artwork, none containing a real term as a substring.</li>
+      <li>Under 2.5 MB, LCP under 2.5s, 30fps held through the pinned scene.</li>
+      <li>No source maps, no analytics, no third-party script, private repo.</li>
+    </ol>
+    <p style="margin-top:2rem">Then tag the commit and <strong>stop changing the site</strong>.
+      There is no such thing as a cosmetic change to a site whose entire purpose is
+      camouflage.</p>
+  </div>
+</section>
+
+<footer class="end">
+  <div class="col">
+    <span>Crocaria — Round 1</span>
+    <span>Design replicated from reference · identity original</span>
+    <span>Clue key held locally</span>
+  </div>
+</footer>

@@ -1,0 +1,308 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   NORTHBOUND — design system
+   --------------------------------------------------------------------------
+   Tailwind v4 keeps theme data in CSS, so this file is the whole system.
+   `@theme` emits the palette as custom properties AND as utilities
+   (text-ink, bg-bone, border-stone). `:root` below adds the short aliases the
+   brand bible uses by name, plus the scene grounds, rhythm and type scale.
+
+   Contrast is not decorative here: `npm run audit:contrast` recomputes every
+   shipped pairing from these declarations. Change a hex, re-run it.
+   ========================================================================== */
+
+@theme {
+  /* --- Base palette ------------------------------------------------------ */
+  --color-ink: #0b0f0e; /* near-black — all body copy on light grounds */
+  --color-bone: #f4f1ea; /* warm off-white — the default page ground */
+  --color-moss: #1f3a2e; /* deep forest green — primary brand */
+  --color-lichen: #8a9a5b; /* muted accent — sparingly, on dark only */
+  --color-stone: #575b57; /* secondary copy on light grounds */
+  --color-haze: #a8a29a; /* secondary copy on dark grounds */
+  --color-ember: #c2410c; /* the single hot accent. ONE scene, site-wide. */
+
+  /* --- Typefaces --------------------------------------------------------- */
+  --font-display: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
+  --font-text: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* --- Motion ------------------------------------------------------------ */
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root {
+  /* --- Brand-bible aliases ----------------------------------------------
+     The names Task 2.2 uses. Same values, shorter to read at a call site. */
+  --ink: var(--color-ink);
+  --bone: var(--color-bone);
+  --moss: var(--color-moss);
+  --lichen: var(--color-lichen);
+  --stone: var(--color-stone);
+  --haze: var(--color-haze);
+  --ember: var(--color-ember);
+
+  /* --- Scene grounds -----------------------------------------------------
+     Each full-bleed scroll scene owns a ground. The page cools as you
+     descend, warms again at the bottom. That temperature shift is the
+     cinematic move; no extra animation is spent on it. */
+  --scene-approach: #e8ede7; /* pale sage    — hero */
+  --scene-ascent: #c9d6dd; /* cold sky     — ethos */
+  --scene-ridge: #0b0f0e; /* near-black   — the pinned feature scene */
+  --scene-camp: #f4f1ea; /* bone         — routes, safety, logistics */
+  --scene-dusk: #2a1a12; /* warm dark    — permits, footer */
+
+  /* --- Per-ground foregrounds -------------------------------------------
+     <Section> sets these three for its subtree, so every child reads its
+     colour from context and no component has to know which scene it is in.
+     Body copy is --ink on light and --bone on dark. Nothing in between. */
+  --ground: var(--scene-camp);
+  --fore: var(--ink);
+  --fore-muted: var(--stone);
+  --rule: color-mix(in oklab, var(--fore) 16%, transparent);
+
+  /* --- Type scale --------------------------------------------------------
+     Two families, six steps. Display is editorial and enormous; text is
+     Inter at 400/500 only. Anything not on this ramp is a mistake. */
+  --step-display: clamp(3.5rem, 13vw, 12rem);
+  --step-title: clamp(1.75rem, 4.2vw, 3.25rem);
+  --step-lead: clamp(1.0625rem, 1.5vw, 1.375rem);
+  --step-body: 0.95rem;
+  --step-small: 0.8125rem;
+  --step-label: 0.7rem;
+
+  --leading-display: 0.85;
+  --leading-title: 1.02;
+  --leading-body: 1.7;
+
+  --tracking-display: -0.03em;
+  --tracking-label: 0.18em;
+
+  /* --- Rhythm ------------------------------------------------------------ */
+  --gutter: clamp(1.25rem, 4vw, 4.5rem);
+  --measure: 38ch;
+  --scene-pad: clamp(5rem, 12vh, 10rem);
+  --shell: 82rem;
+}
+
+@layer base {
+  html {
+    background-color: var(--scene-camp);
+    color: var(--ink);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100svh;
+    font-family: var(--font-text);
+    font-size: var(--step-body);
+    font-weight: 400;
+    line-height: var(--leading-body);
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+
+  ::selection {
+    background-color: var(--moss);
+    color: var(--bone);
+  }
+
+  :focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+  }
+
+  img,
+  svg,
+  picture,
+  video {
+    display: block;
+    max-width: 100%;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+@layer components {
+  /* Display type. One rule, so no headline can drift off the scale. */
+  .type-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--step-display);
+    line-height: var(--leading-display);
+    letter-spacing: var(--tracking-display);
+  }
+
+  .type-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--step-title);
+    line-height: var(--leading-title);
+    letter-spacing: -0.02em;
+  }
+
+  .type-lead {
+    font-size: var(--step-lead);
+    line-height: 1.45;
+    font-weight: 400;
+  }
+
+  .type-body {
+    font-size: var(--step-body);
+    line-height: var(--leading-body);
+  }
+
+  .type-small {
+    font-size: var(--step-small);
+    line-height: 1.6;
+  }
+
+  /* Eyebrows, captions, seal text, table headers. */
+  .type-label {
+    font-size: var(--step-label);
+    line-height: 1.4;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Grain
+   --------------------------------------------------------------------------
+   A single fixed, non-interactive layer of very low-contrast noise over the
+   whole viewport. It is what stops five flat scene grounds from reading as
+   five flat scene grounds, and it ties the page to the imagery, which is drawn
+   with a film-grain pass of its own.
+
+   Fixed rather than attached to the document, so it composites once and costs
+   nothing on scroll. The texture is an inline SVG — no request, no file, and
+   nothing for the network tab to show. 3.5% is measured, not guessed: it is
+   visible as texture on a large flat ground and is far below the threshold
+   where it could touch the legibility of small type in a photograph.
+   -------------------------------------------------------------------------- */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* --------------------------------------------------------------------------
+   The two decorative loops
+   -------------------------------------------------------------------------- */
+
+/* The scroll cue in the opening scene: a tick that falls down a hairline. */
+@keyframes cue-fall {
+  0% {
+    transform: translate3d(0, -100%, 0);
+  }
+  100% {
+    transform: translate3d(0, 167%, 0);
+  }
+}
+
+.cue-fall {
+  animation: cue-fall 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* The mote field in the pinned scene. Transform and opacity only, so the whole
+   field lives on the compositor and never touches layout. */
+@keyframes mote-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  14% {
+    opacity: var(--mote-peak, 0.3);
+  }
+  86% {
+    opacity: var(--mote-peak, 0.3);
+  }
+  100% {
+    transform: translate3d(9px, -130px, 0);
+    opacity: 0;
+  }
+}
+
+.mote {
+  animation-name: mote-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* The ticker's loop. Two identical copies of the row sit side by side and the
+   track slides exactly half its width, so the seam never shows. */
+@keyframes ticker-pass {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.ticker-track {
+  animation-name: ticker-pass;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+/* Lenis owns the scroll position when smooth scrolling is on. These are the
+   library's required host styles; without them the page double-scrolls. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* The blanket rule above would collapse the ticker's loop to a single 0.01ms
+     pass and leave the track parked at -50%, showing the duplicate copy.
+     Stop it outright and let the first copy sit still instead. */
+  .ticker-track {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  /* Same problem, same fix. The blanket rule above would run one 0.01ms pass
+     and park each of these at its final keyframe — the cue below its rail and
+     every mote at opacity 0. Stop them outright instead and let them sit where
+     they were drawn: a still tick and a still field, which is what a visitor
+     who asked for less motion should get rather than nothing at all. */
+  .cue-fall,
+  .mote {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .mote {
+    opacity: var(--mote-peak, 0.3);
+  }
+}
