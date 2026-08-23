@@ -12,7 +12,8 @@
     "gen:stand-ins": "node scripts/stand-ins.mjs",
     "audit:names": "node scripts/audit-names.mjs",
     "audit:contrast": "node scripts/contrast.mjs",
-    "verify": "npm run audit:names && npm run audit:contrast && npm run generate && npm run audit:names"
+    "audit:register": "node scripts/register.mjs",
+    "verify": "npm run audit:names && npm run audit:contrast && npm run audit:register && npm run generate && npm run audit:names && npm run audit:register"
   },
   "dependencies": {
     "gsap": "^3.15.0",

@@ -339,6 +339,40 @@ the replica read as a lookalike. `.type-display-xl` keeps `line-height: .75`.
   giving the mark a continuous tumble would make the medallion the one object on
   the page that stops.
 
+### Established by phase 4 — do not undo
+
+- **`_private/placements.json` is where the six live, and the only place.** Every
+  other statement about a placement — the key, the generator input, this file — is
+  derived from it or checked against it. `npm run audit:register` binds each carrier
+  string to the generator job that actually produces it, so artwork cannot drift away
+  from the key without failing.
+- **The key is generated, never written.** `_private/KEY.md` is a by-product of the
+  audit. Editing it by hand is how an answer key comes to describe a site that no
+  longer exists.
+- **A copy decoy may never share a section with a term; an artwork decoy may share
+  the artwork.** These are not the same rule wearing two hats. A find-in-page hit
+  that lands a team in a term's section hands them the region for free — that is what
+  "no decoy adjacent to a clue" protects against. A decoy baked into the same seal or
+  the same plate cannot produce a hit at all, so it leads nowhere; what it does is
+  stop the surface type from being the tell. The audit enforces exactly this split.
+- **The member of a set that carries something is never the first or the last one.**
+  Those are the two everyone reads. And a set of two is a pair — a pair with one odd
+  member is a pointer, so the floor is three.
+- **The whole set is veiled, not just the banned member.** `<OutlineText/>` needs an
+  `aria-label`, and for a set whose text is a banned token that name cannot ship as a
+  literal. But veiling only the one member leaves two plain labels beside one numeric
+  array, which points at the term for anyone reading source — worse than the string.
+  So `outline.mjs` veils every member of a veiled set.
+- **No board card title may appear in the DOM listings on `/roles`, and no listing
+  title on the board.** If the two sets overlap, a reader comparing them finds the one
+  card missing from the listings. The board is internal requisitions; the listings are
+  what the house has published.
+- **`audit:register`'s build gate is a find-in-page simulation, not a source scan.**
+  It strips script, style, head and tags and matches plain lowercase substrings over
+  what is left — which is what Ctrl+F actually does. It deliberately ignores
+  attributes (`audit:names` owns those) and deliberately does **not** strip SVG
+  `<text>`, because Chrome matches it.
+
 ### Drawn type, and its accessibility trade-off
 
 Some display headlines and short labels are set from committed path geometry rather

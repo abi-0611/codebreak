@@ -55,6 +55,24 @@ export const nav: Link[] = [
 ]
 
 /**
+ * The house directory — every route the house publishes, as the footer's MENU
+ * disclosure lists them. A superset of `nav`: the header carries four, the
+ * footer carries the lot.
+ *
+ * `Roles` is here because it has to be. It is a real careers page and it is the
+ * one route off the home page that a reader has to decide is worth opening, so
+ * a house that does not list it in its own footer has no careers page at all —
+ * rule 8. Phase 7 builds it and flips the flag.
+ */
+export const directory: Link[] = [
+  { label: 'Ledger', to: '/', live: true },
+  { label: 'Media', to: '/media', live: false },
+  { label: 'Provenance', to: '/brand', live: false },
+  { label: 'FAQ', to: '/faq', live: false },
+  { label: 'Roles', to: '/roles', live: false },
+]
+
+/**
  * The house channels. Bordered square tiles in the menu, bare glyphs in the
  * footer.
  *
