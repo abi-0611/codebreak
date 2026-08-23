@@ -52,7 +52,11 @@ export const palette = {
  * merged by replacement and survives intact.
  */
 export const fontStack = {
-  display: "'Funnel Display', serif",
+  // The fallback is sans-serif, not serif: measured off the reference, whose
+  // compiled rule is `font-family: Funnel Display, sans-serif`. It only shows
+  // during the swap, and a serif fallback makes the headline visibly reflow
+  // from the wrong skeleton.
+  display: "'Funnel Display', sans-serif",
   body: "'Host Grotesk', sans-serif",
   mono: "'Roboto Mono', ui-monospace, monospace",
 }

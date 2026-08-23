@@ -8,6 +8,8 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
+    "gen:lockup": "node scripts/lockup.mjs",
+    "gen:stand-ins": "node scripts/stand-ins.mjs",
     "audit:names": "node scripts/audit-names.mjs",
     "audit:contrast": "node scripts/contrast.mjs",
     "verify": "npm run audit:names && npm run audit:contrast && npm run generate && npm run audit:names"

@@ -31,7 +31,29 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
 
   // No analytics module. No third-party script. No CMS. Rule: CLAUDE.md "Do not".
-  modules: ['@nuxtjs/tailwindcss'],
+  modules: [
+    '@nuxtjs/tailwindcss',
+
+    /**
+     * Strips /specimen from anything that is not `nuxt dev`.
+     *
+     * The design-system page is a build tool, not a page. Removing the ROUTE
+     * rather than guarding the component is what matters: with nothing
+     * referencing it, the page chunk and everything only it imports — the
+     * stand-in artwork, the fixture copy — are never emitted at all. A
+     * component guarded by a runtime flag still ships its whole subtree.
+     *
+     * `nuxt.options.dev` is the authority here, not NODE_ENV, which is also
+     * 'production' during a dev-mode preview build.
+     */
+    (_options, nuxt) => {
+      if (nuxt.options.dev) return
+      nuxt.hook('pages:extend', (pages) => {
+        const at = pages.findIndex((page) => page.path === '/specimen')
+        if (at !== -1) pages.splice(at, 1)
+      })
+    },
+  ],
 
   tailwindcss: {
     cssPath: '~/assets/css/main.css',

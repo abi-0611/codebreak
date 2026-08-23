@@ -174,6 +174,16 @@ npm run audit:contrast   WCAG AA for every shipped pairing
 npm run verify           both audits, then a full static build
 ```
 
+Two offline generators, run by hand, output committed:
+
+```
+npm run gen:lockup       scripts/lockup.mjs     → app/content/lockup.ts
+npm run gen:stand-ins    scripts/stand-ins.mjs  → app/assets/plates/ (dev only)
+```
+
+Both read licensed font binaries from `_private/fonts/`, which is git-ignored. The
+re-fetch recipe is in the header of `scripts/lockup.mjs`.
+
 ---
 
 ## Design tokens
@@ -252,13 +262,82 @@ the replica read as a lookalike. `.type-display-xl` keeps `line-height: .75`.
 - Respect `prefers-reduced-motion`: no Lenis, no pin, no scrub, no parallax, no GL.
 - Tokens are Tailwind theme values consumed as utilities. No inline hex, anywhere.
 - `.site-max` is the only container. No second one, no `max-w-*` on a section.
-- Generated files (`app/content/outlines.ts`, `app/content/plates.ts`) are never
-  edited by hand. Re-run the generator; the file header names it.
+- Generated files (`app/content/outlines.ts`, `app/content/plates.ts`,
+  `app/content/lockup.ts`) are never edited by hand. Re-run the generator; the file
+  header names it.
 - Images render through `<Plate/>`, never a bare `<img>`. Clue-bearing artwork passes
   `priority="early"` — a clue that fails to paint for a fast scroller does not exist.
 - Seals render at 128px diameter or larger, or the ring lettering stops being readable.
 - Sets are one function called N times. Do not hand-tune one route card, one seal, one
   service mark. A member of a set that differs is the member everyone looks at.
+
+### Established by phase 2 — do not undo
+
+- **Never tween a colour.** `motion.ts` owns geometry and opacity; CSS owns every
+  state colour, as a class. A tween needs a literal value, and literal values are
+  exactly what "no inline hex" forbids. The pill's label flip is the worked example.
+- **motion.ts exports purpose-built helpers, not `gsap`.** `useWipe`, `useAway`,
+  `useEnter`, `useTally`, `useLift`, `useTicker`. A new behaviour gets a new named
+  helper, never an escape hatch — that is what makes "every ScrollTrigger is reverted"
+  true by construction rather than by memory.
+- **Every ScrollTrigger routes through `scrollRoot()`.** On a coarse pointer the
+  document does not scroll — the container in `app.vue` does. A trigger left on
+  `window` silently never fires on a phone, and looks perfect on a desktop.
+- **A closed panel gets `inert`,** not just height 0. Height alone leaves the copy in
+  the tab order and in the accessibility tree.
+- **Links carry a `live` flag** (`app/content/site.ts`). Nitro prerenders with
+  `crawlLinks` and `failOnError`, so a link to a route a later phase has not built yet
+  does not merely 404 — it fails the build. Flip the flag when the route lands.
+- **`/specimen` is removed as a ROUTE, not guarded as a component** (`nuxt.config.ts`).
+  With nothing referencing it, the page chunk and everything only it imports — the
+  fixture copy, the stand-in artwork — are never emitted. A component behind a runtime
+  flag still ships its whole subtree.
+- **A panel opened to `auto` is pinned to `auto` inline**, never `clearProps`. The
+  closed state has to be a class for server-rendered markup to be right, so clearing
+  the inline height restores *that*, and the panel snaps shut as it finishes opening.
+
+### Established by phase 3 — do not undo
+
+- **One scroll position and one rAF loop.** Lenis drives `gsap.ticker`, the ticker
+  drives `ScrollTrigger.update`, and the GL layer draws from that same ticker via
+  `useFrame`. Never `renderer.setAnimationLoop` — it opens a loop per scene, and
+  three scenes plus Lenis is four clocks interleaving.
+- **Lenis is not built on a coarse pointer, or under reduced motion.** It leaves
+  touch on the native scroller regardless, so building it there costs a rAF loop
+  that smooths nothing on the hardware with the least budget. Nothing breaks,
+  because every trigger already routes through `scrollRoot()`.
+- **The pinned scene is pinned by `position: sticky`, not by GSAP.** Teardown §7
+  measures `h-[300vh]` on the section ITSELF; a GSAP pin would have produced a
+  viewport-tall section with a 300vh spacer beside it. `motion.ts` only reports
+  which step we are in.
+- **Steps are discrete, with a dead-band on the boundary.** `step` is a pure
+  function of scroll progress, so reverse crossing cannot desynchronise — there
+  is no playhead to desynchronise. Never tie a marked surface to a raw scrub
+  value.
+- **Reduced-motion layouts are CSS, not a second template.** The reel's stacked
+  layout is the same DOM under different rules. No hydration seam, no second
+  markup path, and it is still correct if the JavaScript never arrives. `inert`
+  is gated on the pin actually being live, so all four steps stay in the
+  accessibility tree there.
+- **The GL gate runs BEFORE the import.** `capable()` decides, then
+  `await import('three')`. A reader who fails the gate never downloads the
+  600 KB. Verified by the absence of a `three` entry in `performance.getEntries`.
+- **Shaders run at `glslVersion: GLSL3` with an explicit `out vec4`.** At GLSL3
+  three stops defining `gl_FragColor` for us — and `gl_FragColor` contains `rag`.
+  This is how the naming ban holds in our own source with no exemption. The build
+  profile of `audit:names` masks three's own GLSL vocabulary; the source profile
+  does not, and must not.
+- **GL colour comes from `tokens/palette.mjs`.** `ink()` derives it. The magenta
+  teardown §9 calls for is a documented hue rotation of `brown-lifted`, not a new
+  literal and not a new token — no text or edge is ever set in it.
+- **On a metal, `color` is a filter, not a colour.** At `metalness: 1` there is no
+  diffuse term, so tinting the struck objects gold multiplies the environment by
+  a blue channel of `0x09` and deletes the gradient that tint was meant to
+  produce. The metal is filtered white; the environment carries the gradient.
+- **The medallion and the house mark share one rotation rule.** Both come to rest
+  face-on over the same band. The medallion has to — it carries something — and
+  giving the mark a continuous tumble would make the medallion the one object on
+  the page that stops.
 
 ### Drawn type, and its accessibility trade-off
 

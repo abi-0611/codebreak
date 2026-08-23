@@ -72,6 +72,12 @@ const SOURCE_ALLOW = [
   // Tailwind's display utility, with or without a variant prefix, and only as
   // a class token: `hidden`, `s:hidden`, `has-hover:hidden`.
   { name: 'hidden display utility', rule: /(?<=[\s"'`])(?:[a-z0-9:[\]/.-]+:)?hidden(?=[\s"'`])/gi },
+  // three.js names the pixel-stage source `fragmentShader` on every material.
+  // We did not choose the spelling and cannot rename it. Masked as that whole
+  // property name only, so a bare word is still a finding — and note our own
+  // shaders run at `glslVersion: GLSL3` precisely so that `gl_FragColor` never
+  // appears in anything we wrote.
+  { name: 'ShaderMaterial property name (three.js)', rule: /fragmentShader/g },
 ]
 
 /**
@@ -90,6 +96,23 @@ const BUILD_ALLOW = [
   { name: 'Web Storage API (unctx, nuxt reload guard)', rule: /(?:Async)?(?:local|session|Local|Session)?[Ss]torage/g },
   { name: 'Fragment vnode type (vue)', rule: /fragment/gi },
   { name: 'pointer drag events (vue runtime-dom attr table)', rule: /drag[a-z]*/gi },
+  // three.js names every GLSL chunk it ships `<something>_frag`,
+  // `<something>_fragment` or `<something>_pars_fragment`, and the language's
+  // own builtins are `gl_FragColor`, `gl_FragCoord`, `gl_FragDepth`. Roughly
+  // 150 identifiers, none of which say anything, all of which contain `rag`.
+  // Masked as an identifier containing `frag`, in the VENDOR profile only —
+  // the source profile has no such entry, which is exactly why our own shaders
+  // run at `glslVersion: GLSL3` with an explicit `out vec4`: at GLSL3 three
+  // stops defining `gl_FragColor` for us and the token never appears in
+  // anything we wrote.
+  { name: 'GLSL chunk and builtin names (three.js)', rule: /w*fragw*/gi },
+  // `alphaToCoverage`, `SAMPLE_ALPHA_TO_COVERAGE` — WebGL multisample state.
+  { name: 'multisample coverage state (three.js / WebGL)', rule: /coverage/gi },
+  // `AnalyserNode.getAverageFrequency` — Web Audio, reached through three's
+  // audio helpers.
+  { name: 'getAverageFrequency (Web Audio)', rule: /average/gi },
+  // `#pragma unroll_loop_start` — three preprocesses its own shaders.
+  { name: '#pragma in shader source (three.js)', rule: /pragma/gi },
 
   // "search" — every occurrence is URL parsing in ufo / vue-router.
   { name: 'URL query string API', rule: /(?:URLSearchParams|searchParams|\.search\b)/g },
@@ -98,6 +121,15 @@ const BUILD_ALLOW = [
 
   // "hidden"
   { name: 'Suspense hiddenContainer (vue)', rule: /hiddenContainer/g },
+  // `He.hidden?(...)` — the Page Visibility API, read by ScrollTrigger to stop
+  // its ticker in a background tab. A property access, so a bare identifier we
+  // chose is still caught.
+  { name: 'Page Visibility API (gsap ScrollTrigger)', rule: /[A-Za-z_$][\w$]*\.hidden\b/g },
+  // `.hidden{display:none}` — the compiled form of the display utility. The
+  // source profile masks it as a class TOKEN, delimited by whitespace or a
+  // quote; once compiled it is a selector followed by a block, which that
+  // pattern cannot see. Matches the whole rule, never a bare word.
+  { name: '.hidden display utility, compiled (tailwind)', rule: /\.hidden\s*\{[^}]*\}/g },
   { name: '.invisible utility definition', rule: /visibility\s*:\s*hidden/gi },
   { name: '[hidden] attribute reset (tailwind preflight)', rule: /\[hidden(?:=[a-z-]+)?\]/gi },
   { name: 'string literal in an attribute table', rule: /["',]hidden["',]/gi },

@@ -102,8 +102,24 @@ const PAIRS = [
   { fg: 'gold', bg: 'brown-dark', bar: 4.5, gate: true, note: 'open accordion question / panel' },
 
   // Accents used as a fill with text on top.
-  { fg: 'black', bg: 'white', bar: 4.5, gate: true, note: 'primary pill label / white fill' },
+  //
+  // NOTE ON `white`. Measured on the reference, `bg-white` computes to
+  // rgb(236 231 224) — it redefines Tailwind's white to cream, and there is no
+  // true #FFFFFF anywhere on the site. We keep `white` at #FFFFFF as an unused
+  // reserve rather than redefining a token to be a lie, and paint every
+  // surface the teardown calls `bg-white` with `cream`. Both are graded here.
+  { fg: 'black', bg: 'cream', bar: 4.5, gate: true, note: 'primary pill label / cream fill (as shipped)' },
+  { fg: 'black', bg: 'white', bar: 4.5, gate: true, note: 'reserve — true white, unused' },
   { fg: 'black', bg: 'gold', bar: 4.5, gate: true, note: 'active tab + close button / gold fill' },
+
+  // THE PILL, in every variant, at rest AND filled. The wipe inverts each
+  // ground, so both ends of every variant have to clear the bar — a hover
+  // state that lands at 1.3:1 is a failure the moment the pointer stops.
+  { fg: 'cream', bg: 'black', bar: 4.5, gate: true, note: 'ghost pill at rest' },
+  {
+    fg: 'cream', bg: 'gold', bar: 4.5, gate: false,
+    note: 'BOUNDARY — why the ghost pill flips its label to black mid-wipe',
+  },
 
   // THE RECORDED DEVIATION. The reference sets its footer meta copy here.
   {

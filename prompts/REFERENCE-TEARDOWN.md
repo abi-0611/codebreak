@@ -283,10 +283,40 @@ Base markup, measured and cleaned:
 </a>
 ```
 
-**The effect:** on hover or tap, GSAP animates the `<rect>`'s `width` from `0` → `150%`
-and the `feDisplacementMap`'s `scale` from `0` → about `18` → back to `0`. The gold
-fill wipes across the pill with a torn, organic, ink-bleeding edge instead of a
-straight line. On leave it wipes back out.
+**The effect:** on hover or tap, GSAP wipes a gold `<rect>` across the pill while a
+turbulence displacement map tears its leading edge, so the fill bleeds in like ink
+rather than sliding in as a straight line. On leave it wipes back out.
+
+**Re-measured 2026-08-23** by observing the two animated attributes directly
+(`MutationObserver` on the `<rect>` and the `<feDisplacementMap>`, driven by a real
+pointer). An earlier reading of this section recorded the displacement as
+`0 -> 18 -> 0`; that was wrong, and the timings below replace it.
+
+| | attribute | from | to | duration | ease | delay |
+|---|---|---|---|---|---|---|
+| **enter** | `rect` `width` | `0%` | `150%` | `1.0s` | `power2.out` | — |
+| | `feDisplacementMap` `scale` | `150` | `40` | `1.0s` | `power2.out` | — |
+| **leave** | `rect` `width` | `150%` | `0` | `1.0s` | `power2.out` | — |
+| | `feDisplacementMap` `scale` | `40` | `0` | `0.5s` | `power2.out` | `0.5s` |
+
+Three things fall out of that table and all three are load-bearing:
+
+- **Both directions ease *out*.** The leave is not the enter reversed (that would be
+  `power2.in`); it is its own tween with the same curve. Reversing the timeline is
+  the obvious implementation and it is visibly wrong — the wipe crawls away.
+- **Displacement starts enormous.** At `scale: 150` the rect is barely 3% wide and is
+  shredded into scattered specks; the tear calms to `40` as the edge sweeps past. A
+  displacement that starts small produces a clean edge, which is the whole effect
+  missing.
+- **Displacement holds at `40` while filled, and only relaxes to `0` half a second
+  into the leave.** At rest the torn edge is outside the pill (`width: 150%`) and
+  `overflow-hidden` clips it, so the residual displacement costs nothing visually.
+
+`bg-white` on the reference resolves to `rgb(236 231 224)` — **cream, not `#FFFFFF`**.
+The reference redefines Tailwind's `white`. There is no true white anywhere on the
+site, so `bg-white`, `text-white` and `bg-white/10` in this document all mean cream.
+Our build paints those surfaces with the `cream` token and keeps `white` at `#FFFFFF`
+as an unused reserve rather than redefining a token to be a lie.
 
 Notes that matter:
 
@@ -321,6 +351,58 @@ Variants seen: white fill / black text (primary), transparent with
   `has-hover:hover:text-gold`, active route gets `text-gold`.
 - Right side: primary pill plus a circular hamburger button.
 
+**Measured 2026-08-23.** The header carries its own transition, and the hide is a
+class toggle rather than a tween:
+
+```css
+.sh          { transition: transform .75s cubic-bezier(.19, 1, .22, 1) }
+.sh.is-hidden { transform: translate3d(0, -100%, 0) }
+```
+
+`.75s` on `expo2`, transform only. (We cannot use the class name `is-hidden` — it
+trips the naming ban. Ours is `is-away`; the mechanism is identical.)
+
+### 8.2a The underline — `.uline`
+
+Every nav link and most inline links carry it. It wipes in from the left on hover
+and out to the right on leave, which is why the two `transform-origin` values differ:
+
+```css
+.uline         { display: inline-flex; position: relative; white-space: nowrap;
+                 --bottom: .05em }
+.uline::before { content: ""; position: absolute; left: 0; right: 0;
+                 bottom: var(--bottom);
+                 height: .035em; min-height: 1px;
+                 background-color: currentColor;
+                 transform: scaleX(0); transform-origin: right;
+                 transition: transform .75s cubic-bezier(.19, 1, .22, 1) }
+.uline:hover::before,
+.uline.router-link-exact-active::before { transform: scaleX(1);
+                                          transform-origin: left }
+.uline-double  { --bottom: .15em }   /* ::before and ::after, height .025em */
+```
+
+Note `height: .035em` with a `1px` floor: the rule scales with the type until it
+would fall below a device pixel, then stops. `min-height` is doing real work here.
+
+### 8.2b The hamburger — `.lines`
+
+Three rules that morph into an X. Same `.75s` / `expo2` as everything else in the
+header:
+
+```css
+.lines__line                          { transition: transform .75s cubic-bezier(.19,1,.22,1) }
+.lines__line:first-child              { transform: translateY(-.6rem) rotate(0) }
+.lines__line:nth-child(2)             { transform: scaleX(1); transform-origin: left }
+.lines__line:nth-child(3)             { transform: translateY(.6rem) rotate(0) }
+.is-active .lines__line:first-child   { transform: translateY(0) rotate(45deg) }
+.is-active .lines__line:nth-child(2)  { transform: scaleX(0) }
+.is-active .lines__line:nth-child(3)  { transform: translateY(0) rotate(-45deg) }
+```
+
+The middle rule collapses on `scaleX` from its left origin rather than fading — it
+retracts into the corner of the X instead of dissolving under it.
+
 ### 8.3 Menu overlay
 
 Full-screen black. Circular **gold** close button top-right. Contents top to bottom:
@@ -335,8 +417,20 @@ a large gap, the stats box, then a row of social icons in bordered square tiles.
 ```
 
 Desktop: `s:absolute s:bottom-110 s:right-20` inside the hero, `bg-black`, `z-3`.
-Mobile: static, `mx-20 mb-20`. Each row is a Roboto Mono uppercase label plus a
-value at `1.4rem`. Values count up on enter.
+Mobile: static, `mx-20 mb-20`. Values count up on enter.
+
+Measured row, exactly:
+
+```html
+<li class="px-15 flex items-center gap-x-10 py-12 type-caption uppercase">
+  <span>Total Earnings</span><span>$49,566</span>
+</li>
+```
+
+**The row is `gap-x-10`, not `justify-between`.** Label and value sit adjacent and
+left-aligned, and the box is sized by its widest row. Pushing the value to the right
+edge is the intuitive reading and it is wrong — it turns a stamped plate into a
+dashboard.
 
 ### 8.5 Data table (the ledger)
 
@@ -368,6 +462,22 @@ overlaid wordmark, a light pill showing an index label plus a round play button,
 then a date (gold Roboto Mono) and a title (`type-h2`) below.
 
 ### 8.9 Footer
+
+Measured shell and brand column:
+
+```html
+<footer class="relative bg-black text-white border-t border-brown-dark overflow-hidden z-2">
+  <div class="site-max --l">
+    <div class="py-65 s:py-100 flex flex-col s:flex-row s:items-start s:gap-x-100">
+      <div class="flex flex-col items-start w-full max-w-[37.5rem] shrink-0">
+        [wordmark]
+        <p class="type-body-sm mt-20 mb-25">…</p>
+        [primary pill]
+        <div class="flex items-center gap-x-30 mt-30 s:mt-50">[socials]</div>
+```
+
+Note it is `site-max --l`, not the default padding, and the description is
+`type-body-sm` — the phase list below says `type-body-md`; the measurement wins.
 
 Wordmark → description (`type-body-md`) → primary pill → row of social glyphs →
 hairline → a `MENU` accordion labelled in gold with a `↓` → hairline →

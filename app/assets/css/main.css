@@ -134,9 +134,536 @@
     place-items: center;
   }
 
+  /*
+     For a stack whose height is imposed from outside — a fixed `h-*`, an
+     `aspect-*`, a filled tile.
+
+     Without it the single implicit row is AUTO sized, so a child asking for
+     `height: 100%` resolves against an indefinite row, falls back to its own
+     intrinsic height, and then defines the row. An 854px-tall plate in a 220px
+     tile therefore produces a 501px row: the picture is clipped (fine) and
+     everything `place-items: center` centres is centred against 501 and lands
+     outside the clip (not fine). That is how a tile label disappears.
+
+     `minmax(0, 1fr)` makes the track definite, so `h-full` means the
+     container's height and centring means the middle of what you can see. The
+     `0` floor is what stops an oversized child pushing the track back open. */
+  .stack.--fill {
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   /* svh second so mobile browser chrome does not cause the jump. */
   .h-full-screen {
     height: 100vh;
     height: 100svh;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   EASING — teardown §6.
+
+   Three curves, and only three. They are declared here as custom properties so
+   a hand-written CSS transition and a Tailwind `ease-*` utility resolve to the
+   same numbers; tailwind.config.ts carries the same three under
+   transitionTimingFunction.
+
+   `--ease-expo2` is the site's house curve: the header hide, the underline
+   wipe and the hamburger morph all run .75s on it.
+--------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    --ease-pulse: cubic-bezier(.4, 0, .6, 1);
+    --ease-expo: cubic-bezier(.23, 1, .32, 1);
+    --ease-expo2: cubic-bezier(.19, 1, .22, 1);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   THE TYPE RAMP — teardown §5.
+
+   Eight classes, transcribed from the compiled stylesheet of the reference.
+   Three rules that are not negotiable:
+
+     · letter-spacing is `normal` on all eight. The reference tracks nothing.
+       Tracking is the single fastest way to make a replica read as a lookalike.
+     · .type-display-xl keeps line-height .75. That number is what makes the
+       hero headline stack the way it does.
+     · headings are Funnel Display 300, not 400. The lightness IS the character.
+
+   These live in the components layer so a utility can still override one —
+   which is exactly what the reference does with `max-s:!text-10` on its
+   smallest chips.
+--------------------------------------------------------------------------- */
+
+@layer components {
+  .type-display-xl {
+    font-family: theme(fontFamily.display);
+    font-size: 5.85rem;
+    font-weight: 300;
+    line-height: .75;
+  }
+
+  .type-h2 {
+    font-family: theme(fontFamily.display);
+    font-size: 2.8rem;
+    font-weight: 300;
+    line-height: 1;
+  }
+
+  /* One definition shared with every heading level inside .txt — the reference
+     compiles them into a single rule and so do we. */
+  .type-h3,
+  .txt h2,
+  .txt h3,
+  .txt h4,
+  .txt h5,
+  .txt h6 {
+    font-family: theme(fontFamily.mono);
+    font-size: 2rem;
+    font-weight: 400;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  /* A mono heading is already at its emphasis ceiling; bold inside one just
+     breaks the colour of the line. */
+  .type-h3 strong,
+  .txt h2 strong,
+  .txt h3 strong,
+  .txt h4 strong,
+  .txt h5 strong,
+  .txt h6 strong {
+    font-weight: 400;
+  }
+
+  .type-body-lg {
+    font-family: theme(fontFamily.body);
+    font-size: 1.8rem;
+    line-height: 1.2;
+  }
+
+  .type-body-md {
+    font-family: theme(fontFamily.body);
+    font-size: 1.6rem;
+    line-height: 1.4;
+  }
+
+  .type-body-sm {
+    font-family: theme(fontFamily.body);
+    font-size: 1.6rem;
+    line-height: 1.4;
+  }
+
+  .type-body-xs {
+    font-family: theme(fontFamily.body);
+    font-size: 1.4rem;
+    line-height: 1.35;
+  }
+
+  .type-caption {
+    font-family: theme(fontFamily.mono);
+    font-size: 1.3rem;
+    font-weight: 500;
+    line-height: 1.6;
+  }
+
+  @media (min-width: 650px) {
+    .type-display-xl { font-size: 10rem; }
+    .type-h2         { font-size: 4.9rem; }
+
+    .type-h3,
+    .txt h2,
+    .txt h3,
+    .txt h4,
+    .txt h5,
+    .txt h6          { font-size: 2.5rem; }
+
+    .type-body-lg    { font-size: 2.4rem; }
+    .type-body-md    { font-size: 1.8rem; }
+    .type-body-xs    { font-size: 1.5rem; }
+    .type-caption    { font-size: 1.4rem; }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   .txt — the long-form block. Teardown §5, transcribed.
+
+   Used by /privacy and /terms in phase 7. It is the only place on the site
+   where markup arrives as a document rather than as a composed section, so it
+   is the only place that styles bare `h2`/`ul`/`li`.
+
+   The list marker is a .3em dot drawn as a pseudo-element rather than a
+   `list-style`, so it inherits currentColor and lands on the same optical
+   baseline at every type size.
+--------------------------------------------------------------------------- */
+
+@layer components {
+  .txt > :not(:last-child) {
+    margin-bottom: 2.5rem;
+  }
+
+  .txt h2:not(:first-child),
+  .txt h3:not(:first-child),
+  .txt h4:not(:first-child),
+  .txt h5:not(:first-child),
+  .txt h6:not(:first-child) {
+    margin-top: 8rem;
+  }
+
+  .txt h2:not(:last-child),
+  .txt h3:not(:last-child),
+  .txt h4:not(:last-child),
+  .txt h5:not(:last-child),
+  .txt h6:not(:last-child) {
+    margin-bottom: 2rem !important;
+  }
+
+  .txt ul,
+  .txt ol {
+    display: flex;
+    flex-direction: column;
+    list-style-type: none;
+  }
+
+  .txt ul:not(:first-child),
+  .txt ol:not(:first-child) {
+    padding-top: 1rem;
+  }
+
+  .txt ul:not(:last-child),
+  .txt ol:not(:last-child) {
+    padding-bottom: 2rem;
+  }
+
+  .txt ul li,
+  .txt ol li {
+    position: relative;
+    border-top: 1px solid theme(colors.brown.dark);
+    padding: 1rem 0 1rem 1.5em;
+  }
+
+  .txt ul li:last-child,
+  .txt ol li:last-child {
+    border-bottom: 1px solid theme(colors.brown.dark);
+  }
+
+  .txt ul li::before,
+  .txt ol li::before {
+    content: "";
+    position: absolute;
+    left: .5em;
+    top: 1.1em;
+    width: .3em;
+    height: .3em;
+    border-radius: 99px;
+    background-color: currentColor;
+  }
+
+  .txt-media {
+    margin-top: 3rem !important;
+  }
+
+  .txt-media:not(:last-child) {
+    margin-bottom: 3rem;
+  }
+
+  .txt > :not(:last-child).txt-quote {
+    margin-top: 4.5rem;
+  }
+
+  @media (min-width: 650px) {
+    .txt > :not(:last-child).txt-quote {
+      margin-top: 10.5rem;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   INTERACTION PRIMITIVES — teardown §8.2, §8.2a, §8.2b.
+
+   These are CSS transitions, deliberately. CLAUDE.md's rule is one motion
+   system per property, not one motion system per site: nothing in
+   app/composables/motion.ts ever touches `transform` on these three, so there
+   is no property with two owners.
+
+   Everything here runs .75s on --ease-expo2, which is the header's curve. The
+   consistency is the point — a menu that closes on a different curve to the
+   header that hides reads as two sites.
+--------------------------------------------------------------------------- */
+
+@layer components {
+  /* The sticky header. `.is-away` is toggled by the scroll-direction watcher
+     in motion.ts. The reference's own class name for this is on the naming
+     ban, so ours is `is-away`; the mechanism is unchanged. */
+  .site-head {
+    transition: transform .75s var(--ease-expo2);
+  }
+
+  .site-head.is-away {
+    transform: translate3d(0, -100%, 0);
+  }
+
+  /* The link underline. It wipes IN from the left and OUT to the right, which
+     is the whole reason the two transform-origins differ — a single origin
+     makes it retract the way it arrived, which reads as an undo rather than a
+     release.
+
+     height is .035em with a 1px floor, so the rule scales with its type until
+     it would drop below a device pixel and then holds. */
+  .uline {
+    --bottom: .05em;
+    position: relative;
+    display: inline-flex;
+    white-space: nowrap;
+  }
+
+  .uline::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: var(--bottom);
+    height: .035em;
+    min-height: 1px;
+    background-color: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform .75s var(--ease-expo2);
+  }
+
+  /* Rule 4: gated on the capability query, never a bare :hover. On a phone a
+     bare :hover sticks after the tap and the link stays underlined forever. */
+  @media (hover: hover) and (pointer: fine) {
+    .uline:hover::before {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+  }
+
+  .uline.router-link-exact-active::before,
+  .uline.--on::before {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  .uline-double {
+    --bottom: .15em;
+  }
+
+  .uline-double::before,
+  .uline-double::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: var(--bottom);
+    height: .025em;
+    min-height: 1px;
+    background-color: currentColor;
+  }
+
+  .uline-double::after {
+    bottom: calc(var(--bottom) - .06em);
+  }
+
+  /* The hamburger. Three rules that morph into an X; the middle one retracts
+     on scaleX from its left origin instead of fading, so it appears to be
+     pulled into the corner of the X rather than dissolving under it. */
+  .lines__line {
+    transition: transform .75s var(--ease-expo2);
+  }
+
+  .lines__line:first-child  { transform: translateY(-.6rem) rotate(0); }
+  .lines__line:nth-child(2) { transform: scaleX(1); transform-origin: left; }
+  .lines__line:nth-child(3) { transform: translateY(.6rem) rotate(0); }
+
+  .is-active .lines__line:first-child  { transform: translateY(0) rotate(45deg); }
+  .is-active .lines__line:nth-child(2) { transform: scaleX(0); }
+  .is-active .lines__line:nth-child(3) { transform: translateY(0) rotate(-45deg); }
+}
+
+/* ---------------------------------------------------------------------------
+   THE HORIZONTAL PULL REGION — teardown §8.5, §8.8.
+
+   The ledger and the card carousel both scroll sideways inside themselves.
+   Two things make that honest rather than a trap:
+
+     · a VISIBLE track, so it is discoverable without hovering — the reference
+       shows one and it is the only reason the table reads as scrollable;
+     · overscroll-behavior-x: contain, so reaching the end does not hand the
+       gesture to the page and trigger a browser back-swipe.
+
+   Named `pull`. CLAUDE.md's substring trap table names the alternative it
+   replaces; a carousel is exactly where that word sneaks in.
+--------------------------------------------------------------------------- */
+
+@layer components {
+  .pull-x {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: theme(colors.brown.DEFAULT) theme(colors.brown.dark);
+  }
+
+  .pull-x::-webkit-scrollbar {
+    height: .6rem;
+  }
+
+  .pull-x::-webkit-scrollbar-track {
+    background-color: theme(colors.brown.dark);
+  }
+
+  .pull-x::-webkit-scrollbar-thumb {
+    border-radius: 99px;
+    background-color: theme(colors.brown.DEFAULT);
+  }
+
+  /* Snap belongs to the carousel, not the table: a table that snaps fights
+     the reader trying to line two columns up. */
+  .pull-snap {
+    scroll-snap-type: x mandatory;
+  }
+
+  .pull-snap > * {
+    scroll-snap-align: start;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   REDUCED MOTION — rule: respect it everywhere.
+
+   motion.ts refuses to build a ScrollTrigger, a pin, a scrub or a ticker under
+   this query. What is left is the CSS above, and this is where it is dealt
+   with: state still changes, it just arrives instantly.
+
+   Note what is NOT disabled — nothing here removes a transform, only its
+   duration. The header still hides, the hamburger is still an X, the underline
+   is still drawn. Reduced motion means less movement, not less information.
+--------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .site-head,
+  .uline::before,
+  .lines__line {
+    transition-duration: .01ms;
+  }
+
+  .pull-snap {
+    scroll-snap-type: none;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   THE PILL LABEL FLIP — task 2.3.
+
+   motion.ts owns the rect width and the displacement scale. It does NOT own
+   colour, so the ghost variant's label flip lives here, as a class.
+
+   The delay asymmetry is the whole trick. A CSS transition reads its timing
+   from the state it is moving TO, so:
+
+     entering  the `.--lit` rule applies, delay .45s — the label goes black
+               just as the gold edge reaches it, not before it arrives
+               (black on black) and not after (cream on gold);
+     leaving   the base rule applies, delay 0 — the label is cream again
+               immediately, before the gold has drained off it.
+
+   Only the ghost moves. Primary and gold are black-labelled on both grounds
+   and have nothing to do.
+--------------------------------------------------------------------------- */
+
+@layer components {
+  .pill__label {
+    transition: color .18s var(--ease-expo);
+  }
+
+  .pill.--lit .pill__label {
+    transition-delay: .45s;
+  }
+
+  .pill.--ghost.--lit .pill__label {
+    color: theme(colors.black);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill__label,
+  .pill.--lit .pill__label {
+    transition-duration: .01ms;
+    transition-delay: 0s;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   THE PINNED SCENE — task 3.3, teardown §7 row 5.
+
+   The pin is `position: sticky` on a viewport-tall stage inside a 300vh
+   section, which is what the reference measures as doing: row 5 records
+   `h-[300vh]` on the SECTION, and a GSAP pin would have produced a
+   viewport-tall section with a 300vh spacer beside it instead. motion.ts
+   only reports which of the four steps we are in.
+
+   The cross-fade is 150ms and it is a transition, not a tween. A tween would
+   have to be killed and restarted on every boundary a fast reader crosses,
+   and reverse playback is exactly where that comes apart; a transition
+   re-targets from wherever it currently is, for nothing.
+--------------------------------------------------------------------------- */
+
+@layer components {
+  .reel__step {
+    transition: opacity .15s linear;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   ...AND THE SAME SCENE WITH NO PIN AT ALL.
+
+   Task 3.3: under reduced motion the four steps render as four stacked static
+   blocks, and every marked surface in them must still be visible. This is done entirely
+   in CSS, so the DOM is byte-identical in both layouts — no hydration seam, no
+   second markup path to keep correct, and the stacked layout is what a reader
+   gets even if the JavaScript never arrives.
+
+   These rules sit OUTSIDE @layer deliberately. Tailwind expands `@tailwind
+   utilities` at the top of this file, so an unlayered rule down here outranks
+   a utility of equal specificity — which is what lets `height: auto` beat
+   `h-[300vh]` and `opacity: 1` beat `opacity-0` without an !important.
+--------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .reel {
+    height: auto;
+  }
+
+  .reel__stage {
+    position: static;
+    height: auto;
+  }
+
+  /* Out of the overlay stack and into ordinary block flow. The step itself
+     stays a stack — the caption still sits over its photograph. */
+  .reel__deck {
+    display: block;
+  }
+
+  .reel__step {
+    height: 62vh;
+    opacity: 1;
+    transition-duration: .01ms;
+  }
+
+  .reel__step + .reel__step {
+    margin-top: 6rem;
+  }
+
+  /* Nothing to report: with no crossing there is no progress through one. */
+  .reel__rail {
+    display: none;
   }
 }
