@@ -114,7 +114,7 @@ export const EXPOSE = {
  *
  *   hue    2π / 0.55 ≈ 11.4s
  *   sway   2π / 0.34 ≈ 18.5s
- *   breath 2π / 0.23 ≈ 27.3s
+ *   breath 2π / 0.29 ≈ 21.7s
  *
  * The wander is `0.5 + 0.25·sin(hue·t) + 0.25·sin(sway·t + phase)`, which is
  * inside 0..1 for every input by construction — not by a clamp that could be
@@ -123,25 +123,28 @@ export const EXPOSE = {
  * reference doing both, wandering across one and marching across the other,
  * and a sum of sines is what produces a stretch of each.
  *
- * These rates are the slowest that clear §11.9's "≥ 30° over 10s of zero
- * scroll". Slower is not more restrained here, it is a still image.
+ * `hue` and `sway` sit at the floor that clears §11.9's "≥ 30° over 10s of
+ * zero scroll" — slower there is not more restrained, it is a still image.
+ * `breath` is raised a step above ITS floor on top of that, for a slightly
+ * livelier glow cadence; still no simple multiple of the other two.
  */
-export const CLOCK = { hue: 0.55, sway: 0.34, breath: 0.23, phase: 1.7 }
+export const CLOCK = { hue: 0.55, sway: 0.34, breath: 0.29, phase: 1.7 }
 
 /**
  * The instant the still frame is drawn at.
  *
  * A single frozen frame should be a REPRESENTATIVE state of the clock, not
  * whatever `t = 0` happens to be, and "representative" here means both terms
- * at the middle of their travel. `4π / breath` is the second zero crossing of
- * the density term after the start, so the breath is exactly mid; the wander
- * lands at 0.502 there, which is as close to its own middle as any of the
- * breath's crossings gets. Both facts are checked by the generator, which
- * prints them and refuses to write a frame drawn more than a little off
- * centre — a constant that silently stops being the middle of the clock is
- * exactly the kind of thing nobody notices for two phases.
+ * at the middle of their travel. Every `kπ / breath` puts the breath term
+ * exactly at its own middle; `k = 5` is the smallest of those crossings
+ * whose wander also lands close to ITS middle — 0.489 here, against 0.5.
+ * Both facts are checked by the generator, which prints them and refuses to
+ * write a frame drawn more than a little off centre — a constant that
+ * silently stops being the middle of the clock is exactly the kind of thing
+ * nobody notices for two phases. Retuning `breath` moves every crossing, so
+ * this is re-searched rather than carried over whenever it changes.
  */
-export const FREEZE = (4 * Math.PI) / CLOCK.breath
+export const FREEZE = (5 * Math.PI) / CLOCK.breath
 
 /**
  * The vertical hue ramp — §11.3.0 item 3. Magenta at the top of the viewport,
