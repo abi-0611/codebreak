@@ -67,7 +67,9 @@ import sharp from 'sharp'
 import { face, line, arc, round } from './lib/glyphs.mjs'
 import { outline, counter, BOX as DEVICE_BOX } from './lib/device.mjs'
 import { record, grade, FLOOR, VIEWPORT } from './lib/reach.mjs'
+import { stone, exposure, clockAt } from './lib/stone.mjs'
 import { palette } from '../tokens/palette.mjs'
+import { FREEZE } from '../tokens/field.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const at = (...p) => resolve(root, ...p)
@@ -413,6 +415,132 @@ function thread(rand, w, h, n, { far }) {
     )
   }
   return out.join('')
+}
+
+/**
+ * The ledger's colonnade, frozen — the still frame for GL scene 5.
+ *
+ * Phase 11 §11.3.4. It is NOT `interior()` below, and the difference is the
+ * one thing that matters about a fallback: `interior()` draws RECTANGULAR bays
+ * for the carousel's twelve rooms, and the tunnel's bays are ARCHED. A still
+ * that stands in for a scene has to be the same picture, which is the lesson
+ * still-01 cost a whole phase to learn.
+ *
+ * SO IT IS THE SAME PROJECTION, NOT A LOOKALIKE. The constants below are the
+ * scene's own — read off `app/composables/scenes/tunnel.ts` — and `to()` is a
+ * pinhole camera: the same FOV, the same focal length, the same off-axis
+ * camera position, evaluated at the middle of the dolly. Nesting an arch at a
+ * fixed ratio would have been three lines shorter and would have converged on
+ * the wrong vanishing point, because perspective scales by 1/distance and a
+ * fixed ratio scales geometrically.
+ *
+ * The bays are drawn FAR TO NEAR under `fill-rule: evenodd`, so each wall
+ * paints everywhere except its own opening and the nearer wall occludes the
+ * further one. That is the whole depth read; there is no z-buffer here.
+ *
+ * DUPLICATED CONSTANTS, DELIBERATELY AND UNCOMFORTABLY. The scene is
+ * TypeScript and this file is not, so unlike the backdrop — where
+ * `tokens/field.mjs` is one record both sides import — these twelve numbers
+ * exist twice. They are gathered at the top of one function and named after
+ * their counterparts so the duplication is at least visible. If the tunnel is
+ * ever retuned, retune it here.
+ */
+function colonnade(w, h, seed) {
+  const rand = rng(seed)
+
+  // tunnel.ts: BAY, RUN, DOLLY, FOV.
+  const BAY = { wall: 9, ceiling: 7, floor: -2.4, open: 1.5, spring: 0.5 }
+  const RUN = { bays: 15, gap: 2.3, near: 3 }
+  const FOV = 42
+  // Mid-dolly: DOLLY.from - 0.5 * DOLLY.travel. A still of a camera move shows
+  // the middle of it, for the same reason still-04 shows the beat its sequence
+  // resolves to rather than the one it starts from.
+  const CAM = { x: 0.35, y: 0.25, z: 5 - 0.5 * 11 }
+
+  const focal = h / 2 / Math.tan((FOV * Math.PI) / 360)
+  /** World point to screen, for a camera looking straight down -Z. */
+  const to = (x, y, z) => {
+    const d = CAM.z - z
+    return [w / 2 + ((x - CAM.x) / d) * focal, h / 2 - ((y - CAM.y) / d) * focal]
+  }
+
+  /** One arched opening at depth z, as a closed subpath. */
+  const arch = (z) => {
+    const out = []
+    const [lx, ly] = to(-BAY.open, BAY.floor, z)
+    out.push(`M${r1(lx)} ${r1(ly)}`)
+    const [sx, sy] = to(-BAY.open, BAY.spring, z)
+    out.push(`L${r1(sx)} ${r1(sy)}`)
+    // The semicircle as a polyline rather than an SVG `A`. Two arcs join the
+    // same two points and the flags that pick between them are the single
+    // easiest thing to get backwards here — an arch that springs downward
+    // reads as a keyhole and looks like a bug in the geometry.
+    for (let k = 1; k <= 24; k += 1) {
+      const a = Math.PI - (Math.PI * k) / 24
+      const [px, py] = to(Math.cos(a) * BAY.open, BAY.spring + Math.sin(a) * BAY.open, z)
+      out.push(`L${r1(px)} ${r1(py)}`)
+    }
+    const [rx, ry] = to(BAY.open, BAY.floor, z)
+    out.push(`L${r1(rx)} ${r1(ry)}Z`)
+    return out.join('')
+  }
+
+  const far = -(RUN.near + (RUN.bays - 1) * RUN.gap + 2.4)
+  const parts = [`<rect width="${w}" height="${h}" fill="${INK.ground}"/>`]
+
+  // The floor, first and furthest back. Everything else paints over it, and
+  // what survives is the strip visible under each arch.
+  {
+    const q = [
+      to(-BAY.wall, BAY.floor, -RUN.near),
+      to(BAY.wall, BAY.floor, -RUN.near),
+      to(BAY.wall, BAY.floor, far),
+      to(-BAY.wall, BAY.floor, far),
+    ]
+    parts.push(
+      `<path d="M${q.map((p) => `${r1(p[0])} ${r1(p[1])}`).join('L')}Z" fill="url(#deck)"/>`,
+    )
+  }
+
+  // The opening at the end. Graded down for the reason tunnel.ts gives: the
+  // section's subject is a table of lot numbers, not this.
+  {
+    const [gx0, gy0] = to(-BAY.open * 1.05, BAY.spring - 0.35 - BAY.ceiling * 0.31, far)
+    const [gx1, gy1] = to(BAY.open * 1.05, BAY.spring - 0.35 + BAY.ceiling * 0.31, far)
+    parts.push(
+      `<rect x="${r1(gx0)}" y="${r1(gy1)}" width="${r1(gx1 - gx0)}" height="${r1(gy0 - gy1)}" fill="url(#mouth)"/>`,
+    )
+  }
+
+  // The bays, far to near. The tone ramps with depth because the one light is
+  // at the far end — the near bays are almost unlit, which is what keeps cream
+  // copy legible over this.
+  for (let i = RUN.bays - 1; i >= 0; i -= 1) {
+    const z = -(RUN.near + i * RUN.gap)
+    const t = i / (RUN.bays - 1)
+    const face = mix(INK.ground, INK.warm, 0.03 + t * 0.3)
+    const soffit = mix(INK.ground, INK.gold, 0.02 + t * 0.16)
+    parts.push(
+      `<path d="M0 0L${w} 0L${w} ${h}L0 ${h}Z${arch(z)}" fill="${face}" fill-rule="evenodd"/>`,
+      // A hairline on the opening's own edge, which is what reads as masonry
+      // rather than as a hole cut in a card.
+      `<path d="${arch(z)}" fill="none" stroke="${soffit}" stroke-width="${r1(1 + t * 1.6)}"/>`,
+    )
+  }
+
+  const defs =
+    `<linearGradient id="deck" x1="0.5" y1="1" x2="0.5" y2="0">` +
+    `<stop offset="0" stop-color="${INK.ground}"/>` +
+    `<stop offset="0.72" stop-color="${mix(INK.ground, INK.warm, 0.12)}"/>` +
+    `<stop offset="1" stop-color="${mix(INK.ground, INK.gold, 0.26)}"/></linearGradient>` +
+    `<radialGradient id="mouth" cx="0.5" cy="0.5" r="0.62">` +
+    `<stop offset="0" stop-color="${mix(INK.gold, INK.cream, 0.22)}"/>` +
+    `<stop offset="1" stop-color="${mix(INK.ground, INK.gold, 0.5)}"/></radialGradient>`
+
+  return sharp(doc(w, h, parts.join(''), defs))
+    .composite([vignette(w, h, 0.4), grain(w, h, seed, 10)])
+    .png()
+    .toBuffer()
 }
 
 /**
@@ -1816,10 +1944,88 @@ if (wanted(job.stencil.stem)) {
   await emit(job.stencil.stem, image, [S.w, S.w / 2], { quality: 64 })
 }
 
+/* -- the share card -------------------------------------------------------- */
+
+/**
+ * The Open Graph card — one image, shared by every route.
+ *
+ * PNG, not WebP. The page never loads it, so its weight is not on rule 9's
+ * budget, and the crawlers that matter are not browsers: several still refuse
+ * WebP outright and show a blank card rather than a fallback. There is no
+ * `srcset` for a share card and no second chance at one.
+ *
+ * It is built out of the same five parts as <PageBand/> — black ground, four
+ * vertical hairlines, the mark, the name, a closing rule — because that is
+ * what makes a link preview read as the same house as the page it opens.
+ * Nothing here is a one-off treatment invented for the card.
+ */
+if (wanted(job.social.stem)) {
+  const [W, H] = job.social.size
+  const rule = INK.rule
+
+  // Four verticals into five equal columns. The centre column is the one the
+  // wordmark sits in, which is why the count is even and the spacing is not
+  // negotiable: five columns put a column MIDDLE at the centre line, four
+  // would put a hairline there and cut the mark in half.
+  const columns = [1, 2, 3, 4]
+    .map((i) => `<rect x="${r1((W / 5) * i)}" y="0" width="1" height="${H}" fill="${rule}"/>`)
+    .join('')
+
+  const markHeight = Math.round(H * 0.26)
+  const markScale = markHeight / DEVICE_BOX
+  const markWidth = DEVICE_BOX * markScale
+
+  // Solved backwards off the cap height, the way every measured label on this
+  // site is set — see `emFor`. A share card is read at 240px in a chat window
+  // as often as at full size, so the name is set large and the foot small
+  // enough to fall away rather than turn to mush.
+  const nameEm = emFor('display', H * 0.088)
+  const taglineEm = emFor('text', H * 0.028)
+  const footEm = emFor('monoMid', H * 0.018)
+
+  const top = H * 0.20
+  const nameY = top + markHeight + H * 0.13
+  const taglineY = nameY + H * 0.062
+  const footY = H - H * 0.072
+
+  const image = await sharp(
+    doc(
+      W,
+      H,
+      `<rect width="${W}" height="${H}" fill="${INK.ground}"/>` +
+        columns +
+        `<g transform="translate(${r1(W / 2 - markWidth / 2)} ${r1(top)}) scale(${r1(markScale)})" fill-rule="nonzero">` +
+        `<path d="${outline()}${counter()}" fill="${INK.cream}"/></g>` +
+        type('display', job.social.name, { size: nameEm, x: W / 2, y: nameY, align: 'centre' }).svg +
+        type('text', job.social.tagline, { size: taglineEm, x: W / 2, y: taglineY, align: 'centre', fill: INK.cream }).svg +
+        // The closing rule, and the registry line under it. Same relationship
+        // as the page band's bottom hairline to the section beneath it.
+        `<rect x="0" y="${r1(H - H * 0.13)}" width="${W}" height="1" fill="${rule}"/>` +
+        type('monoMid', job.social.foot, { size: footEm, x: W / 2, y: footY, align: 'centre', fill: INK.warm }).svg,
+    ),
+  )
+    .composite([vignette(W, H, 0.45), grain(W, H, seedOf(job.social.stem), 8)])
+    .png()
+    .toBuffer()
+
+  await emit(job.social.stem, image, [W], { kind: 'png' })
+}
+
 /* -- the carousel interiors, the link tiles, the two other stills ---------- */
 
-for (let i = 1; i <= 6; i += 1) {
-  const stem = `room-0${i}`
+/**
+ * Twelve, not six. `/dispatches` lays the whole register out as a grid while
+ * the home carousel shows the first six of it, and a grid that reused each
+ * interior twice would read as a page padded out — which is exactly what it
+ * would be. Six more at 7 KB each is the cheapest fix available.
+ *
+ * The index is padded, so `room-01` through `room-06` keep the stems and
+ * therefore the seeds they already had. An unpadded `room-0${i}` would give
+ * the tenth `room-010`, which is a new stem, a new seed, and a full re-encode
+ * of nothing.
+ */
+for (let i = 1; i <= 12; i += 1) {
+  const stem = `room-${String(i).padStart(2, '0')}`
   if (!wanted(stem)) continue
   const w = 760
   const h = 1010
@@ -1836,10 +2042,72 @@ for (let i = 1; i <= 4; i += 1) {
 }
 
 if (wanted('still-01')) {
-  // The hero backdrop's fallback: the same ember field GL scene 1 drifts.
-  const w = 900
-  const h = 1200
-  const image = await macro(w, h, seedOf('still-01'))
+  /*
+    The hero backdrop's fallback — phase 11 §11.3.0.
+
+    Drawn by scripts/lib/stone.mjs, which is a CPU port of the SAME pixel
+    stage app/composables/scenes/drift.ts runs on the GPU, reading the same
+    constants out of tokens/field.mjs. Before phase 11 this was a crocus
+    macro: a warm, shallow-focus photograph standing in for a field of lit
+    veining on black, which is to say the site shipped two different heroes
+    depending on a hardware gate nobody browsing ever sees fail.
+
+    3:2 AND LANDSCAPE, where the phase 3 frame was 3:4 portrait. <Plate/>
+    renders with object-cover and the hue ramp is VERTICAL, so cropping the
+    sides is free and cropping the top and bottom throws the ramp away. A
+    1440x860 desktop loses ~5% of the height of this frame; a 375x812 phone
+    loses none of it and crops horizontally instead. The portrait frame lost
+    over half the ramp on every desktop.
+  */
+  const w = 1200
+  const h = 800
+
+  /*
+    FREEZE has to still be the middle of the clock. It is derived from
+    CLOCK.breath, so retuning the breath moves it — and a still drawn at an
+    extreme of the density term is a fallback that looks like the shader
+    having a moment rather than like the shader. Checked here rather than
+    trusted, because reduced motion is the one state nobody is browsing in
+    while they work.
+  */
+  const clock = clockAt(FREEZE)
+  if (Math.abs(clock.breath - 0.5) > 0.01 || Math.abs(clock.wander - 0.5) > 0.02) {
+    console.error(
+      '\n  FREEZE is no longer the middle of the field clock: ' +
+        `breath ${clock.breath.toFixed(3)}, wander ${clock.wander.toFixed(3)}.` +
+        '\n  Re-derive it in tokens/field.mjs against the retuned CLOCK.\n',
+    )
+    process.exit(1)
+  }
+
+  const field = stone(w, h)
+  const level = exposure(field)
+  console.log(
+    `  still-01   lit ${level.lit.toFixed(2)}%   dark ${level.dark.toFixed(2)}%   ` +
+      `mid ${level.mid.toFixed(2)}%   (§11.9: 2.0-5.8 / >=96.6 / <=1.5)`,
+  )
+
+  /*
+    A fallback that has drifted out of the shader's measured bands is a
+    second site, so it fails the run rather than printing a warning nobody
+    reads. The window is wider than §11.9's on purpose: this is ONE frozen
+    frame of a field that breathes, and the acceptance range describes the
+    whole breath. What it catches is a still that is not the same picture.
+  */
+  if (level.lit < 1.5 || level.lit > 7 || level.dark < 96 || level.mid > 2.2) {
+    console.error(
+      '\n  still-01 does not carry the shader’s exposure. It is the reduced-motion' +
+        '\n  and no-GL hero, so this ships a second site. Check tokens/field.mjs.\n',
+    )
+    process.exit(1)
+  }
+
+  const image = await sharp(field.data, {
+    raw: { width: field.width, height: field.height, channels: 3 },
+  })
+    .png()
+    .toBuffer()
+
   await emit('still-01', image, [w, w / 2], { quality: 58 })
 }
 
@@ -1864,6 +2132,129 @@ if (wanted('still-03')) {
     .png()
     .toBuffer()
   await emit('still-03', image, [750, 375])
+}
+
+if (wanted('still-04')) {
+  /*
+    GL scene 4's fallback: the closing panel's struck pair — phase 11 §11.3.2.
+
+    THE LAST BEAT, not the first. The live sequence runs one blank -> pieces ->
+    two coins -> both turning, and a single frozen frame has to choose. It
+    chooses the state the sequence RESOLVES to, for the same reason the
+    medallion's frame is drawn face-on: a fallback showing the middle of a
+    movement reads as a scene that has stalled, and a reader who never sees the
+    live version has no way to know it was meant to be going somewhere.
+
+    16:10, because that is the aspect of the frame it sits in — <TabPanel/>'s
+    default. A still that has to be cropped to fit its own mount is a still
+    whose composition is decided by object-cover.
+
+    ON THE GROUND. The live canvas is transparent (`alpha: true`,
+    `setClearAlpha(0)`), so what shows behind the coins there is the panel's
+    own `bg-brown-deepest`. The frame is drawn on the same value for the same
+    reason the seal is composited rather than pasted: a black rectangle inside
+    a brown mount reads as something stuck on.
+  */
+  const w = 1200
+  const h = 750
+  const seed = seedOf('still-04')
+
+  /*
+    Radius and separation follow the SCENE's own numbers rather than taste. It
+    frames on a reach of 2.2, so one world unit is h / (2 * 2.2) of the frame's
+    height; PAIR puts each coin at 0.72 of the blank's radius and 0.86 either
+    side of centre. Change those in strike.ts and this frame is wrong, which is
+    the argument for reading them from one place — but the scene is TypeScript
+    and this file is not, so the honest thing is to say so here rather than to
+    pretend the two are bound.
+  */
+  const unit = h / 4.4
+  const r = unit * 0.72
+  const gap = unit * 0.86
+  const cy = h / 2
+
+  /*
+    EVERY ELLIPSE ON ONE ASPECT. The first version of this drawing gave the
+    recessed field a different rx:ry from the coin, then rotated the group — and
+    two concentric ellipses of different aspect do not stay concentric under
+    rotation. What that produced was a disc with a second disc pasted on it,
+    slid a few pixels off to one side, which is precisely how a fallback comes
+    to look like a bug.
+  */
+  const SQUASH = 0.94
+  const oval = (rad, extra = '') =>
+    `<ellipse cx="0" cy="0" rx="${r1(rad)}" ry="${r1(rad * SQUASH)}" ${extra}/>`
+
+  const coin = (cx, tilt) =>
+    // A slight lean on each, opposed, so the two read as a pair caught turning
+    // rather than as one drawing used twice. The live scene leans them for a
+    // different reason — a flat metal facing the camera reflects one point of
+    // the environment and comes out one flat colour — and the two reasons
+    // happen to want the same picture.
+    `<g transform="translate(${r1(cx)} ${r1(cy)}) rotate(${r1(tilt)})">` +
+    // Seated, not floating.
+    `<ellipse cx="0" cy="${r1(r * 0.07)}" rx="${r1(r * 1.03)}" ry="${r1(r * SQUASH)}" fill="${INK.ground}" opacity="0.6"/>` +
+    oval(r, `fill="url(#face)"`) +
+    // The recessed field, as a DISH rather than a disc: a radial ramp that
+    // fades out before the rim, so the level change reads as depth instead of
+    // as an edge.
+    oval(r * 0.84, `fill="url(#dish)"`) +
+    // The rim stands proud of the field, which is what a die does to a blank.
+    oval(r, `fill="none" stroke="url(#rim)" stroke-width="${r1(r * 0.07)}"`) +
+    // One specular, up and to the left, matching the key in gl.ts's forge().
+    `<ellipse cx="${r1(-r * 0.3)}" cy="${r1(-r * 0.34)}" rx="${r1(r * 0.42)}" ry="${r1(r * 0.2)}" ` +
+    `transform="rotate(-24)" fill="url(#sheen)"/>` +
+    `</g>`
+
+  const defs =
+    `<linearGradient id="face" x1="0.15" y1="0" x2="0.85" y2="1">` +
+    `<stop offset="0" stop-color="${mix(INK.gold, INK.cream, 0.2)}"/>` +
+    `<stop offset="0.38" stop-color="${INK.gold}"/>` +
+    `<stop offset="0.72" stop-color="${INK.warm}"/>` +
+    `<stop offset="1" stop-color="${dim(INK.mid, 0.45)}"/></linearGradient>` +
+    `<radialGradient id="dish" cx="0.5" cy="0.5" r="0.5">` +
+    `<stop offset="0" stop-color="${dim(INK.warm, 0.6)}" stop-opacity="0.68"/>` +
+    `<stop offset="0.72" stop-color="${dim(INK.warm, 0.4)}" stop-opacity="0.3"/>` +
+    `<stop offset="1" stop-color="${INK.gold}" stop-opacity="0"/></radialGradient>` +
+    `<linearGradient id="rim" x1="0.1" y1="0" x2="0.9" y2="1">` +
+    `<stop offset="0" stop-color="${mix(INK.gold, INK.cream, 0.45)}"/>` +
+    `<stop offset="0.5" stop-color="${INK.gold}"/>` +
+    `<stop offset="1" stop-color="${dim(INK.mid, 0.55)}"/></linearGradient>` +
+    `<radialGradient id="sheen" cx="0.5" cy="0.5" r="0.5">` +
+    `<stop offset="0" stop-color="${mix(INK.gold, INK.cream, 0.6)}" stop-opacity="0.26"/>` +
+    `<stop offset="1" stop-color="${INK.cream}" stop-opacity="0"/></radialGradient>`
+
+  const image = await sharp(
+    doc(
+      w,
+      h,
+      `<rect width="${w}" height="${h}" fill="${INK.paper}"/>` +
+        coin(w / 2 - gap, -7) +
+        coin(w / 2 + gap, 6),
+      defs,
+    ),
+  )
+    .composite([vignette(w, h, 0.34), grain(w, h, seed, 9)])
+    .png()
+    .toBuffer()
+
+
+  await emit('still-04', image, [w, w / 2], { quality: 62 })
+}
+
+if (wanted('still-05')) {
+  /*
+    GL scene 5's fallback: the ledger's colonnade — phase 11 §11.3.4.
+
+    16:10 and wide, because the box it fills is a full-width section backdrop
+    at every viewport above the breakpoint. Below it the section is tall and
+    narrow and <Plate/>'s object-cover crops the sides — which costs nothing
+    here, because the corridor is on the axis and the arch is in the middle.
+  */
+  const w = 1200
+  const h = 740
+  const image = await colonnade(w, h, seedOf('still-05'))
+  await emit('still-05', image, [w, w / 2], { quality: 60 })
 }
 
 /* ==========================================================================

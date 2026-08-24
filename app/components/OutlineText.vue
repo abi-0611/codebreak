@@ -39,9 +39,26 @@ const props = withDefaults(
      * differ from its siblings.
      */
     cap?: number
+    /**
+     * Size against the INHERITED font size instead of against a fixed cap.
+     *
+     * The geometry is laid on a 1000-unit em (scripts/outline.mjs, `EM`), so
+     * one em of box is one em of type: the drawn line then lands on the cap
+     * line of whatever it is nested inside, at every breakpoint, with no
+     * second value to keep in step. A `.type-h3` wrapper is 2rem on a phone
+     * and 2.5rem from `s:` up, and a drawn label sized in rem would match one
+     * of those two and be visibly wrong at the other.
+     *
+     * It applies to the whole set, exactly like `cap` does. Nothing here may
+     * ever be used on one member.
+     */
+    fluid?: boolean
   }>(),
-  { index: 0, cap: 0 },
+  { index: 0, cap: 0, fluid: false },
 )
+
+/** The em the generator laid the set on. Must match `EM` in outline.mjs. */
+const EM = 1000
 
 const set = computed(() => outlines[props.name])
 const art = computed(() => set.value.members[props.index])
@@ -53,6 +70,13 @@ const size = computed(() => {
   const glyphs = art.value
   if (!glyphs) return {}
 
+  if (props.fluid) {
+    return {
+      height: `${glyphs.box[1] / EM}em`,
+      width: `${glyphs.box[0] / EM}em`,
+    }
+  }
+
   const capPx = props.cap || set.value.capPx
   const scale = capPx / set.value.cap
   return {
@@ -61,7 +85,28 @@ const size = computed(() => {
   }
 })
 
-const label = computed(() => nameOf(props.name, props.index))
+/**
+ * The accessible name, applied AFTER hydration and never rendered on the
+ * server.
+ *
+ * `nameOf` decodes a veiled set's name from the committed character codes, and
+ * the whole point of those codes is that the line does not appear as a literal
+ * in anything a reader can open. Server-rendering the decoded name puts it
+ * straight back into the prerendered html — one Ctrl+U from being read, and a
+ * finding in `npm run audit:names`, which scans the built output as well as
+ * the source.
+ *
+ * So the markup ships without a name and the name is attached on mount. What
+ * that costs is precise and worth stating: a reader with assistive technology
+ * and no JavaScript gets an image role with no name here. Rule 1 is what keeps
+ * that from mattering — nothing on this site may live only in a label — and
+ * every one of these lines is a short label beside copy that says the same
+ * thing in ordinary type.
+ */
+const label = ref('')
+onMounted(() => {
+  label.value = nameOf(props.name, props.index)
+})
 </script>
 
 <template>
@@ -71,7 +116,7 @@ const label = computed(() => nameOf(props.name, props.index))
     :style="size"
     class="block"
     role="img"
-    :aria-label="label"
+    :aria-label="label || undefined"
     preserveAspectRatio="xMinYMid meet"
   >
     <path :d="art.d" fill="currentColor" fill-rule="nonzero" />

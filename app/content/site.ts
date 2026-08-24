@@ -26,6 +26,16 @@ export type Link = {
   live: boolean
 }
 
+/**
+ * The one address the house publishes.
+ *
+ * It is declared here rather than written into each call site because it is a
+ * real destination that appears in the footer, in the menu and beside two of
+ * the home page's copy blocks. A house that prints its own address four ways
+ * has three addresses that are wrong.
+ */
+export const mailbox = 'ledger@crocaria.example'
+
 export const site = {
   name: 'CROCARIA',
   founded: 1904,
@@ -35,6 +45,18 @@ export const site = {
 
   /** The persistent CTA. A register, not a checkout — see CLAUDE.md. */
   cta: 'Open Ledger',
+
+  /**
+   * Where that CTA goes.
+   *
+   * It pointed at `/` while the register was seven rows on the home page.
+   * Phase 7 built the full one, and a pill labelled "Open Ledger" that opens
+   * the front door instead is the kind of small dishonesty a reader notices
+   * without being able to say why. Declared here rather than at the four call
+   * sites — the header, the menu, the footer and the hero — because a house
+   * whose CTA points four ways has three that are wrong.
+   */
+  register: '/ledger',
 
   /** Footer and menu description. */
   blurb:
@@ -48,11 +70,22 @@ export const site = {
  * hairline-divided rows in the menu overlay.
  */
 export const nav: Link[] = [
-  { label: 'Ledger', to: '/', live: true },
-  { label: 'Media', to: '/media', live: false },
-  { label: 'Provenance', to: '/brand', live: false },
-  { label: 'FAQ', to: '/faq', live: false },
+  { label: 'Dispatches', to: '/dispatches', live: true },
+  { label: 'FAQ', to: '/faq', live: true },
+  { label: 'The Ledger', to: '/ledger', live: true },
+  { label: 'The House', to: '/house', live: true },
 ]
+
+/**
+ * The menu overlay's rows — teardown §8.3, task 7.9: the header's four, plus
+ * Roles.
+ *
+ * Roles is in the overlay and not in the header for the same reason it is in
+ * the footer and not in the header: it is a real page the house publishes and
+ * a page nobody arrives looking for. Four rows is what the header measures at;
+ * the overlay has the room.
+ */
+export const menu: Link[] = [...nav, { label: 'Roles', to: '/roles', live: true }]
 
 /**
  * The house directory — every route the house publishes, as the footer's MENU
@@ -65,11 +98,11 @@ export const nav: Link[] = [
  * rule 8. Phase 7 builds it and flips the flag.
  */
 export const directory: Link[] = [
-  { label: 'Ledger', to: '/', live: true },
-  { label: 'Media', to: '/media', live: false },
-  { label: 'Provenance', to: '/brand', live: false },
-  { label: 'FAQ', to: '/faq', live: false },
-  { label: 'Roles', to: '/roles', live: false },
+  { label: 'The Ledger', to: '/ledger', live: true },
+  { label: 'Dispatches', to: '/dispatches', live: true },
+  { label: 'FAQ', to: '/faq', live: true },
+  { label: 'The House', to: '/house', live: true },
+  { label: 'Roles', to: '/roles', live: true },
 ]
 
 /**
@@ -77,25 +110,26 @@ export const directory: Link[] = [
  * footer.
  *
  * These are ours, not the reference's — its partner marks and outbound links
- * are never reproduced. The two that are live are genuinely live: a mailbox
- * and the fields themselves on a public map.
+ * are never reproduced. All four are genuinely live and all four go somewhere
+ * different: a mailbox, the fields themselves on a public map, the journal and
+ * the register. Two tiles pointing at one route is one tile and a decoration.
  */
 export const channels: Array<Link & { glyph: 'mail' | 'pin' | 'note' | 'feed' }> = [
-  { label: 'Dispatch', glyph: 'mail', href: 'mailto:ledger@crocaria.example', live: true },
+  { label: 'Dispatch', glyph: 'mail', href: `mailto:${mailbox}`, live: true },
   {
     label: 'Consuegra',
     glyph: 'pin',
     href: 'https://www.openstreetmap.org/?mlat=39.4614&mlon=-3.6086#map=13/39.4614/-3.6086',
     live: true,
   },
-  { label: 'Journal', glyph: 'note', to: '/media', live: false },
-  { label: 'Wire', glyph: 'feed', to: '/media', live: false },
+  { label: 'Journal', glyph: 'note', to: '/dispatches', live: true },
+  { label: 'Wire', glyph: 'feed', to: '/ledger', live: true },
 ]
 
 /** Footer legal row. Roboto Mono uppercase, set in the lifted brown. */
 export const legal: Link[] = [
-  { label: 'Privacy', to: '/privacy', live: false },
-  { label: 'Terms', to: '/terms', live: false },
+  { label: 'Privacy', to: '/privacy', live: true },
+  { label: 'Terms', to: '/terms', live: true },
 ]
 
 export const credits = {
@@ -110,9 +144,9 @@ export const credits = {
  * has to be explained is an adjective wearing a number's clothes.
  */
 export const figures = [
-  { label: 'Lots sealed', value: 1284 },
-  { label: 'Estates bonded', value: 19 },
-  { label: 'Seasons on record', value: 121 },
+  { label: 'Total yield', value: 4180, unit: 'kg' },
+  { label: 'Total bonded', value: 612, unit: 'lots' },
+  { label: 'Total lots', value: 1284 },
 ] as const
 
 /** Everything that can be reached right now. */

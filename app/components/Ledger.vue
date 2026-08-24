@@ -122,20 +122,36 @@ function pullEnd(e: PointerEvent) {
         >
           <th scope="row" class="px-15 py-12 font-normal">
             <span class="flex items-center gap-x-15">
-              <!-- Overlapping marks. The ring is the page ground, so the discs
-                   read as stacked rather than merged. -->
+              <!--
+                Overlapping marks. The ring is the page ground, so the discs
+                read as stacked rather than merged.
+
+                THE SIZE IS ON A WRAPPER, NOT ON THE PLATE, and that is not a
+                style preference. <Plate/> carries `w-full h-full` on the image
+                itself so it fills whatever box it is given; a sizing utility
+                passed in from here lands on the SAME element, and which of the
+                two wins is decided by the order Tailwind happens to emit them
+                in rather than by the order they are written. Here it lost: the
+                chip resolved against the table's own layout and came out at
+                512px on a 375px viewport, while looking correct on a desktop —
+                the worst shape a bug can have. A box that states its size, with
+                an image told to fill it, has no way to state the conflict at all.
+              -->
               <span class="flex items-center shrink-0">
-                <Plate
+                <span
                   v-for="(mark, m) in row.marks"
                   :key="mark.src"
-                  :src="mark.src"
-                  :describe="mark.describe"
-                  :w="56"
-                  :h="56"
-                  fit="object-contain"
-                  class="size-20 s:size-28 rounded-full bg-cream/10 ring-2 ring-black"
+                  class="block size-20 s:size-28 shrink-0 overflow-hidden rounded-full bg-cream/10 ring-2 ring-black"
                   :class="m > 0 ? '-ml-10' : ''"
-                />
+                >
+                  <Plate
+                    :src="mark.src"
+                    :describe="mark.describe"
+                    :w="56"
+                    :h="56"
+                    fit="object-contain"
+                  />
+                </span>
               </span>
               <span class="type-body-sm text-cream whitespace-nowrap">{{ row.name }}</span>
             </span>

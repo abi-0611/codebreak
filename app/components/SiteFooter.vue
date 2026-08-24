@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { site, channels, legal, credits, live } from '~/content/site'
+import { site, channels, legal, credits, directory, live } from '~/content/site'
 
 /**
  * The footer — teardown §8.9, measured shell:
@@ -22,7 +22,7 @@ import { site, channels, legal, credits, live } from '~/content/site'
  * 4.78:1. `npm run audit:contrast` prints the finding on every run so it stays
  * a decision rather than a habit.
  */
-withDefaults(
+const props = withDefaults(
   defineProps<{
     /** The collapsed nav, mirroring the reference's MENU disclosure. */
     rows?: readonly { question: string; body: string }[]
@@ -32,6 +32,35 @@ withDefaults(
 
 const glyphs = live(channels)
 const terms = live(legal)
+
+/**
+ * The MENU disclosure's contents — teardown §8.9.
+ *
+ * Filtered by `live`, so it lists what the build actually serves. A directory
+ * that offers a route rendering a 404 is rule 8, and Nitro prerenders with
+ * `failOnError`, so it would not reach a reader anyway: it would stop the
+ * build.
+ *
+ * TASK 7.9 ASKS FOR EVERY ROUTE INCLUDING LEGAL, so the two notices are
+ * appended here rather than being added to `directory` itself. They are not
+ * house sections — they do not belong in the menu overlay or anywhere else
+ * `directory` is read — and the bottom row of this footer still carries them
+ * separately, which is where a reader looking for them actually goes.
+ */
+const routes = [...live(directory), ...live(legal)]
+
+/**
+ * Which disclosure is the MENU one, if any.
+ *
+ * The directory is rendered into that row's panel through a DYNAMIC slot name
+ * rather than into `body-0`. A caller that passes its own disclosures — the
+ * design-system route does — keeps every one of its bodies, and a caller with
+ * no MENU row resolves to a slot nothing matches, which renders the row's own
+ * body exactly as before.
+ */
+const menuSlot = computed(
+  () => `body-${props.rows.findIndex((row) => row.question.toLowerCase() === 'menu')}`,
+)
 </script>
 
 <template>
@@ -43,7 +72,7 @@ const terms = live(legal)
 
           <p class="type-body-sm mt-20 mb-25">{{ site.blurb }}</p>
 
-          <Pill :to="site.home" :label="site.cta">
+          <Pill :to="site.register" :label="site.cta">
             <template #icon>
               <Glyph name="arrow" size="min-w-20 h-32 stroke-current" />
             </template>
@@ -67,7 +96,21 @@ const terms = live(legal)
         </div>
 
         <div v-if="rows.length" class="w-full mt-50 s:mt-0">
-          <Accord :rows="rows" compact />
+          <Accord :rows="rows" compact>
+            <template #[menuSlot]>
+              <ul class="m-0 p-0 list-none flex flex-col">
+                <li v-for="item in routes" :key="item.label">
+                  <NuxtLink
+                    :to="item.to"
+                    class="uline type-caption uppercase text-cream transition-colors duration-500 ease-expo has-hover:hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+                    active-class="text-gold"
+                  >
+                    {{ item.label }}
+                  </NuxtLink>
+                </li>
+              </ul>
+            </template>
+          </Accord>
         </div>
       </div>
     </div>

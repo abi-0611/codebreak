@@ -19,19 +19,25 @@ import { useTicker } from '~/composables/motion'
  * These are OUR trade bodies, not the reference's partner marks. Those are a
  * real company's and are never reproduced.
  */
-const props = withDefaults(
-  defineProps<{
-    cells: readonly string[]
-    /** Names the strip for assistive technology. */
-    label: string
-    /** One full cycle. Slower than it feels like it should be. */
-    seconds?: number
-  }>(),
-  { seconds: 40 },
-)
+/**
+ * THERE IS NO `seconds` PROP — phase 11 §11.4.
+ *
+ * The reference was re-measured as a SPEED: 70.9 px/s leftward. A duration
+ * is the wrong thing to hold constant, because adding a seventh estate would
+ * lengthen the track and silently slow the strip down while the number in the
+ * call site went on looking correct. `useTicker` measures the track and
+ * derives the seconds, so the speed is what survives an edit to the list
+ * above it — which §11.6 names as the change most likely to be undone by
+ * accident.
+ */
+defineProps<{
+  cells: readonly string[]
+  /** Names the strip for assistive technology. */
+  label: string
+}>()
 
 const track = ref<HTMLElement | null>(null)
-useTicker(track, props.seconds)
+useTicker(track)
 </script>
 
 <template>

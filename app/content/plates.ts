@@ -59,6 +59,12 @@ export const plates = {
     src: '/img/frame-21-1400.webp',
     srcset: '/img/frame-21-700.webp 700w, /img/frame-21-1400.webp 1400w',
   },
+  'panel-01': {
+    w: 1200,
+    h: 630,
+    src: '/img/panel-01-1200.png',
+    srcset: '/img/panel-01-1200.png 1200w',
+  },
   'plate-06': {
     w: 1100,
     h: 1500,
@@ -101,6 +107,42 @@ export const plates = {
     src: '/img/room-06-760.webp',
     srcset: '/img/room-06-380.webp 380w, /img/room-06-760.webp 760w',
   },
+  'room-07': {
+    w: 760,
+    h: 1010,
+    src: '/img/room-07-760.webp',
+    srcset: '/img/room-07-380.webp 380w, /img/room-07-760.webp 760w',
+  },
+  'room-08': {
+    w: 760,
+    h: 1010,
+    src: '/img/room-08-760.webp',
+    srcset: '/img/room-08-380.webp 380w, /img/room-08-760.webp 760w',
+  },
+  'room-09': {
+    w: 760,
+    h: 1010,
+    src: '/img/room-09-760.webp',
+    srcset: '/img/room-09-380.webp 380w, /img/room-09-760.webp 760w',
+  },
+  'room-10': {
+    w: 760,
+    h: 1010,
+    src: '/img/room-10-760.webp',
+    srcset: '/img/room-10-380.webp 380w, /img/room-10-760.webp 760w',
+  },
+  'room-11': {
+    w: 760,
+    h: 1010,
+    src: '/img/room-11-760.webp',
+    srcset: '/img/room-11-380.webp 380w, /img/room-11-760.webp 760w',
+  },
+  'room-12': {
+    w: 760,
+    h: 1010,
+    src: '/img/room-12-760.webp',
+    srcset: '/img/room-12-380.webp 380w, /img/room-12-760.webp 760w',
+  },
   'stamp-01': {
     w: 512,
     h: 512,
@@ -114,10 +156,10 @@ export const plates = {
     srcset: '/img/stamp-03-550.webp 550w, /img/stamp-03-1100.webp 1100w',
   },
   'still-01': {
-    w: 900,
-    h: 1200,
-    src: '/img/still-01-900.webp',
-    srcset: '/img/still-01-450.webp 450w, /img/still-01-900.webp 900w',
+    w: 1200,
+    h: 800,
+    src: '/img/still-01-1200.webp',
+    srcset: '/img/still-01-600.webp 600w, /img/still-01-1200.webp 1200w',
   },
   'still-02': {
     w: 750,
@@ -130,6 +172,18 @@ export const plates = {
     h: 750,
     src: '/img/still-03-750.webp',
     srcset: '/img/still-03-375.webp 375w, /img/still-03-750.webp 750w',
+  },
+  'still-04': {
+    w: 1200,
+    h: 750,
+    src: '/img/still-04-1200.webp',
+    srcset: '/img/still-04-600.webp 600w, /img/still-04-1200.webp 1200w',
+  },
+  'still-05': {
+    w: 1200,
+    h: 740,
+    src: '/img/still-05-1200.webp',
+    srcset: '/img/still-05-600.webp 600w, /img/still-05-1200.webp 1200w',
   },
   'tile-01': {
     w: 620,

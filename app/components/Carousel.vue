@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useReduced } from '~/composables/motion'
+import type { Dispatch } from '~/content/media'
 
 /**
  * The card carousel — teardown §8.8.
@@ -16,21 +17,14 @@ import { useReduced } from '~/composables/motion'
  * Arrows are desktop-only (`has-hover:`), because on a phone the gesture IS
  * the control — a pair of arrow buttons there is two more things covering the
  * cards.
+ *
+ * THE CARD ITSELF IS <Card/>, and phase 7 is why: `/dispatches` lays the same
+ * cards out as a grid. One card, two arrangements. The rail states the width
+ * here rather than in the card, because the width is a property of the rail.
  */
-export type Card = {
-  /** Index label in the light pill, e.g. "LOT 04". */
-  tag: string
-  date: string
-  title: string
-  plate: { src: string; describe: string; w: number; h: number }
-  /** Omitted while the destination route does not exist yet. Rule 8: no dead
-   *  links, so a card with nowhere to go is simply not a link. */
-  to?: string
-}
-
 const props = withDefaults(
   defineProps<{
-    cards: readonly Card[]
+    cards: readonly Dispatch[]
     /** Names the region for assistive technology. */
     label: string
     /** Back/forward button labels. */
@@ -63,50 +57,13 @@ function step(dir: 1 | -1) {
 
 <template>
   <section :aria-label="label" class="w-full">
-    <div
-      ref="rail"
-      class="pull-x pull-snap flex gap-x-20 pb-20"
-      tabindex="0"
-    >
-      <component
-        :is="card.to ? 'NuxtLink' : 'article'"
-        v-for="card in cards"
+    <div ref="rail" class="pull-x pull-snap flex gap-x-20 pb-20" tabindex="0">
+      <Card
+        v-for="card in props.cards"
         :key="card.title"
-        :to="card.to"
-        class="group block w-[28rem] s:w-[42rem] shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
-      >
-        <!-- The header. `.stack --fill` rather than absolute inset-0: the
-             frame's height comes from its aspect, and `--fill` makes that row
-             definite so the plate resolves `h-full` against the frame instead
-             of against its own intrinsic height. -->
-        <div class="stack --fill aspect-[3/4] rounded-[.5rem] overflow-hidden border border-brown-dark bg-brown-deepest">
-          <Plate
-            :src="card.plate.src"
-            :describe="card.plate.describe"
-            :w="card.plate.w"
-            :h="card.plate.h"
-          />
-
-          <div class="relative z-2 flex flex-col justify-between p-20">
-            <Wordmark name="short" size="h-20 s:h-24" :describe="label" class="text-cream" />
-
-            <div class="flex items-center justify-between gap-x-15 h-40 pl-20 pr-5 rounded-full bg-cream text-black">
-              <span class="type-caption uppercase">{{ card.tag }}</span>
-              <!-- Decorative: the whole card is the control. A second real
-                   button inside a link is a keyboard trap in miniature. -->
-              <span
-                class="flex items-center justify-center size-30 rounded-full bg-black text-cream"
-                aria-hidden="true"
-              >
-                <Glyph name="play" size="w-14 h-14" />
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <p class="mt-15 type-caption uppercase text-gold">{{ card.date }}</p>
-        <h3 class="mt-10 type-h2 text-cream">{{ card.title }}</h3>
-      </component>
+        :card="card"
+        class="w-[28rem] s:w-[42rem] shrink-0"
+      />
     </div>
 
     <!-- Desktop only. Rule 4 is satisfied by the scroll gesture itself. -->

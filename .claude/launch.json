@@ -4,11 +4,15 @@
     {
       "name": "crocaria",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
+      "runtimeArgs": ["run", "dev"],
       "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "crocaria-built",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "serve", ".output/public", "-l", "4173"],
+      "port": 4173,
       "autoPort": true
     }
   ]

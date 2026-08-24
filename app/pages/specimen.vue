@@ -372,12 +372,14 @@ const GLYPHS = ['arrow', 'right', 'left', 'down', 'up', 'mail', 'note', 'pin', '
           Right move between cells and wrap.
         </p>
         <div class="mt-30 s:max-w-[70rem]">
+          <!--
+            ONE `media` SLOT, not one per cell. Phase 11 §11.3.2 re-read
+            teardown §8.7: the framed panel is shared and it is the COPY that
+            swaps with the cell. See <TabPanel/>.
+          -->
           <TabPanel :tabs="tabs" label="House process">
-            <template #media-0>
+            <template #media>
               <Plate :src="cards[0].plate.src" describe="" :w="640" :h="854" />
-            </template>
-            <template #media-1>
-              <Plate :src="cards[1].plate.src" describe="" :w="640" :h="854" />
             </template>
           </TabPanel>
         </div>

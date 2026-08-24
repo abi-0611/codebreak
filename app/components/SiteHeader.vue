@@ -69,7 +69,7 @@ const gone = computed(() => away.value && !open.value)
           </ul>
 
           <div class="flex items-center gap-x-15">
-            <Pill :to="site.home" :label="site.cta" class="hidden s:inline-flex">
+            <Pill :to="site.register" :label="site.cta" class="hidden s:inline-flex">
               <template #icon>
                 <Glyph name="arrow" size="min-w-20 h-32 stroke-current" />
               </template>

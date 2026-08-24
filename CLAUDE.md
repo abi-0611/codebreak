@@ -181,13 +181,20 @@ npm run gen:mark         scripts/mark.mjs       → app/content/device.ts, publi
 npm run gen:lockup       scripts/lockup.mjs     → app/content/lockup.ts
 npm run gen:outline      scripts/outline.mjs    → app/content/outlines.ts
 npm run gen:plates       scripts/plates.mjs     → public/img/*, app/content/plates.ts
-npm run gen:art          all four, in order
+npm run gen:kit          scripts/kit.mjs        → public/dl/*.zip, app/content/kit.ts
+npm run gen:art          all five, in order
 npm run gen:stand-ins    scripts/stand-ins.mjs  → app/assets/plates/ (dev only)
 ```
 
 Every one of them is **deterministic**: same inputs, byte-identical output. Running
 any of them twice produces no diff, and that is a property to preserve rather than a
 happy accident — a generator that churns its output is a generator nobody re-runs.
+
+`gen:kit` runs LAST and deliberately reads what `gen:mark` and `gen:lockup` committed
+rather than re-deriving it, so the geometry a buyer downloads from `/house` is
+byte-for-byte the geometry the header paints. Its ZIP writer pins the DOS timestamp
+to 1980 — every archiver on npm stamps the wall clock, which would churn a binary on
+every run.
 
 They read licensed font binaries from `_private/fonts/`, which is git-ignored. The
 re-fetch recipe is in the header of `scripts/lockup.mjs`.
@@ -423,6 +430,83 @@ the replica read as a lookalike. `.type-display-xl` keeps `line-height: .75`.
 - **A full `gen:plates` run sweeps encodings it did not produce.** Changing a plate's
   size changes the width in its filename, so the old file survives, stays committed
   and stays in the budget while the manifest no longer mentions it.
+
+### Established by phase 11 — do not undo
+
+- **Scroll-linked and time-linked motion are different systems and never share a
+  helper.** The backdrop's hue and density, the marquee and both struck objects'
+  idle drift run on the ticker's elapsed time; everything else runs on scroll
+  progress. A helper that quietly accepts either will be handed the wrong one,
+  and the failure reads as "the animation feels slightly off" rather than as a bug.
+- **`tokens/field.mjs` is the hero backdrop's one record.** The GL shader and
+  `scripts/lib/stone.mjs`, which draws the still that stands in for it, read the
+  same twelve constants. Two copies is how a shader change ships two different
+  sites — which is exactly what phase 3 shipped, a vein field on a desktop and a
+  crocus macro under reduced motion.
+- **The field cannot leave 285°–45°, by arithmetic rather than by care.** The
+  vertical ramp spans 78°, the clock translates it by 42°, and 78 + 42 is the
+  arc. Both terms are bounded by construction. Never jitter the HUE — jitter the
+  ramp coordinate and clamp it, which buys the same local variation and keeps
+  the proof.
+- **A flat metal reflects one point of the environment.** It comes out one solid
+  colour however it is turned, so teardown §9's gradient never lands. Every
+  struck surface on the site is domed for this reason — the medallion's field,
+  the mark's extruded caps, the closing panel's wedges. It looks like a lighting
+  problem and it is a geometry problem.
+- **A partial `CylinderGeometry` is an open shell.** three.js generates the
+  torso arc and the two cap sectors and nothing for the radial cut faces. Wedges
+  are authored by hand in `strike.ts`, with written normals — `computeVertexNormals()`
+  flat-shades a non-indexed buffer and smooths across the one edge that has to
+  stay sharp.
+- **The contraction MINIMISES and keeps tracking.** An earlier build wrote the
+  opposite here — "crops, never a scale" — on the belief that the reference
+  re-scissors one shared canvas per hook. Re-measured: its backdrop wrapper
+  computes `clip-path: none` at every scroll position and `gl.viewport` /
+  `gl.scissor` take the same arguments on every frame. What moves is a
+  resolution uniform, 1425x795 down to 718x359, so the whole field is drawn
+  smaller and ends up inside the plate. We reproduce it with two elements — the
+  wrapper takes the aperture as `clip-path: inset()`, the box inside it takes
+  the matching `translate() scale()` — because a clip resolves in its own
+  element's transformed space and one element carrying both would chase itself.
+  It starts at the hero's `top top`, not when the plate appears, and lands at
+  the plate's `bottom 80%`, linearly, with no ease. The trigger still spans the
+  plate's whole crossing: ending it at the landing freezes the box while the
+  plate carries on up the page, seven hundred pixels adrift.
+- **`onToggle` fires when `isActive` FLIPS, so it cannot see a jump.** A reader
+  who crosses a whole section in one scroll event takes its trigger from false
+  to false. Anything that has to be right at every scroll position — the rail's
+  stop, its visibility — is a pure function of scroll against cached bounds, in
+  one trigger, not a per-element toggle.
+- **The marquee holds a SPEED, not a duration.** 70.9 px/s at 1920, kept as
+  rem/s so the rem engine carries it to every viewport. `useTicker` measures the
+  track and derives the seconds, and there is no `seconds` prop to pass — a
+  duration is the wrong thing to hold constant, because adding a seventh estate
+  would silently slow the strip down while the call site went on looking right.
+- **The rail does not exist below `s:`, deliberately.** Eight mono labels down
+  the left edge of a 375px column is an obstruction, not a rail; `display: none`
+  also takes it out of the accessibility tree rather than leaving a second
+  navigation to walk past. It carries no marked surface, so rule 4 is untouched.
+- **Reduced motion means less MOVEMENT, not less information.** The rail is
+  navigation: its triggers are built under the query and only the marker's
+  travel and the fade become instant. `useAway` is the precedent — the header
+  still hides, it just does it at once.
+- **The exposure harness crops to the hero copy block's own bottom edge.**
+  Cropping to the viewport is right at 1440×860, where that block is exactly one
+  screen, and wrong at 375, where the estate strip and the closing panel's
+  `brown-deepest` ground fall inside the frame and report the shader as three
+  times brighter than it is. It was measuring furniture.
+
+- **The closing panel advances its own cell once, and the first press ends that
+  for good.** The opening move does not finish with the contraction — as the
+  cell bar settles into the screen the gold crosses to the second cell, and back
+  on the way up. On the reference it fires at the exact scroll where the plate
+  centres, which is also where its bar arrives, because its plate IS its media
+  frame; ours has a framed media of its own between the two, so keying it to the
+  plate would fire it 700px below the fold. `useHandoff` therefore keys it to the
+  bar, at the fraction of the viewport the reference's bar occupies when it
+  fires. A `handoff` prop, off everywhere else — a control that re-decides itself
+  under a reader who has just chosen is broken, which is why `cede()` also runs
+  from `focusin` and why nothing moves the roving tabindex but the reader.
 
 ### Drawn type, and its accessibility trade-off
 

@@ -46,6 +46,29 @@ export const TURN = {
   /** Radians at full swing. Beyond about 1.1 the face edges on and goes dark. */
   swing: 0.95,
   lean: 0.16,
+  /**
+   * THE IDLE DRIFT — phase 11 §11.3.3, and §11.2 invariant 5.
+   *
+   * The capture shows the medallion turning through a full magenta ->
+   * violet -> gold sweep of its environment during a dwell where nothing
+   * else moves. Phase 3 shipped an idle of 0.014 radians, which is under a
+   * degree: enough to say the object is not a photograph, nowhere near
+   * enough to move the reflection anywhere.
+   *
+   * A tenth of a radian is 5.7 degrees, and on a domed face that is a long
+   * way around the environment — the reflected ray turns by twice the
+   * surface turn, and the dome is already sweeping the ramp across the
+   * face. It is also small enough that the rim band stays readable at rest
+   * (cos 5.7 degrees is 0.995), which is the constraint that matters,
+   * because the disc carries one of the six.
+   *
+   * TIME, NOT SCROLL. `plateau()` owns the scroll attitude and this owns
+   * the drift, and they are summed rather than blended: the rest band is
+   * still a rest band, it just is not a freeze frame.
+   */
+  drift: 0.1,
+  /** Radians per second. Slow — this is a struck object on a bench. */
+  sway: 0.17,
 } as const
 
 export function disc(opts: { face?: string; turn: { value: number } }): Build {
@@ -155,12 +178,15 @@ export function disc(opts: { face?: string; turn: { value: number } }): Build {
     return {
       draw: (time) => {
         const away = plateau(opts.turn.value, TURN.from, TURN.to)
-        coin.rotation.y = away * TURN.swing
-        coin.rotation.x = away * TURN.lean
 
-        // A struck object on a bench is never perfectly still. Both amplitudes
-        // are deliberately under a degree: at rest the face has to stay
-        // readable, not sway.
+        // Scroll attitude PLUS the idle drift — see TURN.drift. The two are
+        // summed rather than blended, so the rest band is still a rest band
+        // and the object is still alive inside it.
+        coin.rotation.y = away * TURN.swing + Math.sin(time * TURN.sway) * TURN.drift
+        coin.rotation.x = away * TURN.lean + Math.cos(time * TURN.sway * 0.77) * TURN.drift * 0.55
+
+        // A struck object on a bench is never perfectly still. These two are
+        // deliberately under a degree: they are the bench, not the object.
         coin.rotation.z = Math.sin(time * 0.24) * 0.014
         coin.position.y = Math.sin(time * 0.5) * 0.012
 

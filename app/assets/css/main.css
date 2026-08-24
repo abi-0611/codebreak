@@ -532,6 +532,85 @@
 }
 
 /* ---------------------------------------------------------------------------
+   THE TWO-CELL BAR — teardown §8.7, phase 11 §11.3.2.
+
+   The gold fill TRANSLATES between cells; it does not cross-fade. One block,
+   moved by transform, so gold is never in two places at once.
+
+   The label flip is the pill's trick and for the same reason. A CSS transition
+   reads its timing from the state it is moving TO, so:
+
+     entering  `.cell.--on` applies, delay .34s — the label goes black just as
+               the gold arrives under it, not before it lands (black on black);
+     leaving   the base rule applies, delay 0 — the label is cream again
+               immediately, before the gold has finished sliding off it.
+
+   Both are `transform` and `color` respectively, never the same property, so
+   nothing here is a property with two owners.
+--------------------------------------------------------------------------- */
+
+@layer components {
+  .cell__fill {
+    transition: transform .5s var(--ease-expo2);
+  }
+
+  .cell {
+    transition: color .18s var(--ease-expo);
+  }
+
+  .cell.--on {
+    transition-delay: .34s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell__fill,
+  .cell,
+  .cell.--on {
+    transition-duration: .01ms;
+    transition-delay: 0s;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   THE SECTION RAIL — phase 11 §11.4.
+
+   "List ends fade out at top and bottom." A mask rather than a pair of
+   gradient overlays, for one reason that matters: the rail is fixed over the
+   page, so an overlay would have to be painted in the page's ground colour to
+   hide anything — and the ground under the rail changes with every alternating
+   section (`black`, then `brown-darker`, then black again). A gradient in one
+   of those two colours is visible against the other. A mask removes the pixels
+   instead of covering them, so whatever the section underneath happens to be
+   is what shows through.
+
+   The fade only has work to do when the list is taller than the column, which
+   at eight items it is not at most heights — it is here because the list is
+   allowed to grow and because a rail whose first item is clipped flat by an
+   overflow is worse than one that fades.
+--------------------------------------------------------------------------- */
+
+@layer components {
+  .rail__fade {
+    overflow-y: auto;
+    scrollbar-width: none;
+    --edge: linear-gradient(
+      to bottom,
+      transparent 0,
+      theme(colors.black) 3rem,
+      theme(colors.black) calc(100% - 3rem),
+      transparent 100%
+    );
+    mask-image: var(--edge);
+    -webkit-mask-image: var(--edge);
+  }
+
+  .rail__fade::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
    REDUCED MOTION — rule: respect it everywhere.
 
    motion.ts refuses to build a ScrollTrigger, a pin, a scrub or a ticker under
@@ -545,6 +624,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .site-head,
+  .rail,
   .uline::before,
   .lines__line {
     transition-duration: .01ms;
@@ -662,8 +742,11 @@
     margin-top: 6rem;
   }
 
-  /* Nothing to report: with no crossing there is no progress through one. */
-  .reel__rail {
+  /* Nothing to report: with no crossing there is no progress through one, so
+     the caption cards' progress hairlines go rather than sitting at zero on
+     four stacked cards — which would read as four rules the design does not
+     have. The card's own border is still there. */
+  .reel__bar {
     display: none;
   }
 }

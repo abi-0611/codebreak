@@ -27,6 +27,16 @@ const props = withDefaults(
     to?: string
     /** External URL. Renders an anchor with the safe rel. */
     href?: string
+    /**
+     * Marks `href` as a file to save rather than a place to go.
+     *
+     * It suppresses `target="_blank"`, which is the whole reason it exists: a
+     * download opened in a new tab flashes a tab that immediately closes
+     * itself, and on the browsers that do not honour `download` at all it
+     * strands the reader on a blank page in front of a binary. `/house`'s
+     * archives are the only callers.
+     */
+    download?: boolean
     /** Neither `to` nor `href` renders a button — the menu close, for one. */
     variant?: 'primary' | 'ghost' | 'gold'
     /** Visible text. Arrives from app/content/, never written inline.
@@ -54,6 +64,7 @@ const tag = computed(() => (props.to ? resolveComponent('NuxtLink') : props.href
 
 const bind = computed(() => {
   if (props.to) return { to: props.to }
+  if (props.href && props.download) return { href: props.href, download: true }
   if (props.href) return { href: props.href, target: '_blank', rel: 'noopener noreferrer' }
   return { type: 'button' as const }
 })

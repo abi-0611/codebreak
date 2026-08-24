@@ -18,7 +18,7 @@
  * ScrollTrigger run on. See motion.ts §8.
  */
 import type * as GL from 'three'
-import { palette } from '~~/tokens/palette.mjs'
+import { ink, palette } from '~~/tokens/palette.mjs'
 import { useFrame, scrollRoot } from '~/composables/motion'
 
 export type Three = typeof GL
@@ -89,53 +89,15 @@ export function capable(): boolean {
 /* -------------------------------------------------------------------------- */
 
 /**
- * A palette token as linear-ish RGB floats, with an optional hue rotation.
+ * ink() is re-exported rather than declared here.
  *
- * "No inline hex, anywhere" is a CLAUDE.md rule and a shader is not an
- * exemption from it. Every colour the GL layer emits starts at
- * tokens/palette.mjs and is transformed here, so the scenes stay on the same
- * record as the stylesheet and there is no second place a colour can be
- * changed.
- *
- * The rotation exists for one reason: teardown §9 describes the scenes as red,
- * gold AND magenta, and the site has no magenta token — it is not a colour any
- * text or edge is ever set in, so putting it in the palette would be inventing
- * a token to satisfy one shader. Rotating the red is the honest way to say
- * "this hue, moved".
+ * It moved to tokens/palette.mjs in phase 11, because the offline generator
+ * that draws the hero backdrop's still frame needs the same four hue rotations
+ * the shader uses and cannot import TypeScript. The GL layer is still where
+ * every scene REACHES for it — hence the re-export, so not one scene import
+ * changed — but the definition now sits with the record it transforms.
  */
-export function ink(hex: string, turn = 0): [number, number, number] {
-  const n = Number.parseInt(hex.slice(1), 16)
-  const r = ((n >> 16) & 255) / 255
-  const g = ((n >> 8) & 255) / 255
-  const b = (n & 255) / 255
-  if (!turn) return [r, g, b]
-
-  const hi = Math.max(r, g, b)
-  const lo = Math.min(r, g, b)
-  const l = (hi + lo) / 2
-  const span = hi - lo
-  if (!span) return [r, g, b]
-
-  const s = l > 0.5 ? span / (2 - hi - lo) : span / (hi + lo)
-  let h = 0
-  if (hi === r) h = ((g - b) / span + (g < b ? 6 : 0)) / 6
-  else if (hi === g) h = ((b - r) / span + 2) / 6
-  else h = ((r - g) / span + 4) / 6
-
-  h = (h + turn / 360 + 1) % 1
-
-  const q = l < 0.5 ? l * (1 + s) : l + s - l * s
-  const p = 2 * l - q
-  const lane = (t: number) => {
-    const u = (t + 1) % 1
-    if (u < 1 / 6) return p + (q - p) * 6 * u
-    if (u < 1 / 2) return q
-    if (u < 2 / 3) return p + (q - p) * (2 / 3 - u) * 6
-    return p
-  }
-
-  return [lane(h + 1 / 3), lane(h), lane(h - 1 / 3)]
-}
+export { ink } from '~~/tokens/palette.mjs'
 
 /**
  * The tints every scene is drawn from. Gold, the red, the magenta — and a

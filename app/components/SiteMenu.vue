@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { pauseScroll, resumeScroll } from '~/composables/motion'
-import { site, nav as allNav, channels, figures, live } from '~/content/site'
+import { site, menu as allRows, channels, figures, live } from '~/content/site'
 
 /**
  * The menu overlay — teardown §8.3.
@@ -9,6 +9,10 @@ import { site, nav as allNav, channels, figures, live } from '~/content/site'
  * bottom: the primary pill, the nav rows as Roboto Mono uppercase separated by
  * `brown-dark` hairlines, a large gap, the stats box, and a row of channel
  * tiles.
+ *
+ * THE ROWS ARE `menu`, NOT `nav` — task 7.9. The header carries four and the
+ * overlay carries those four plus Roles, which is the one published route
+ * nobody arrives looking for.
  *
  * THE FOUR THINGS AN OVERLAY HAS TO GET RIGHT, and what each costs if skipped:
  *
@@ -37,7 +41,7 @@ useFocusKeep(panel, open, () => { open.value = false })
 watch(open, (now) => (now ? pauseScroll() : resumeScroll()))
 onBeforeUnmount(() => resumeScroll())
 
-const rows = live(allNav)
+const rows = live(allRows)
 const tiles = live(channels)
 </script>
 
@@ -69,7 +73,7 @@ const tiles = live(channels)
       </div>
 
       <div class="flex-1 flex flex-col px-20 pb-40">
-        <Pill :to="site.home" :label="site.cta" class="self-start" @click="open = false">
+        <Pill :to="site.register" :label="site.cta" class="self-start" @click="open = false">
           <template #icon>
             <Glyph name="arrow" size="min-w-20 h-32 stroke-current" />
           </template>

@@ -14,7 +14,12 @@ import { useTally } from '~/composables/motion'
  */
 const props = withDefaults(
   defineProps<{
-    rows: readonly { label: string; value: number }[]
+    /**
+     * `unit` is the reference's `$` — part of the value, not a second column.
+     * A figure a buyer has to be told the unit of is a figure they will
+     * mistrust, and the row is too short to carry a header.
+     */
+    rows: readonly { label: string; value: number; unit?: string }[]
     /**
      * Identity, not a label. This box appears in the hero AND in the menu
      * overlay; the menu one is mounted fresh on every open, and a value that
@@ -69,7 +74,7 @@ const show = (n: number) => n.toLocaleString('en-GB')
         Tabular figures: without them the digits change width as they count and
         the whole row jitters sideways for a second and a half.
       -->
-      <span class="tabular-nums">{{ show(now[i] ?? 0) }}</span>
+      <span class="tabular-nums">{{ show(now[i] ?? 0) }}{{ row.unit ? ` ${row.unit}` : '' }}</span>
     </li>
   </ul>
 </template>

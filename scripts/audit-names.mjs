@@ -129,7 +129,20 @@ const BUILD_ALLOW = [
   // source profile masks it as a class TOKEN, delimited by whitespace or a
   // quote; once compiled it is a selector followed by a block, which that
   // pattern cannot see. Matches the whole rule, never a bare word.
-  { name: '.hidden display utility, compiled (tailwind)', rule: /\.hidden\s*\{[^}]*\}/g },
+  //
+  // The variant prefix is part of the pattern because Tailwind compiles
+  // `s:hidden` to `.s\:hidden{display:none}` — the same utility, one escaped
+  // colon further in, which `\.hidden` cannot see. It surfaced only when an
+  // unrelated class was added nearby and moved the rule to a new line of the
+  // sheet, which is exactly the kind of accident a mask written against one
+  // literal spelling produces. The prefix group matches Tailwind's own variant
+  // syntax and nothing else, so a selector WE chose is still caught: our class
+  // names cannot contain the token at all, and the source profile is what says
+  // so.
+  {
+    name: '.hidden display utility with any variant, compiled (tailwind)',
+    rule: /\.(?:[a-z0-9-]+\\:)*hidden\s*\{[^}]*\}/g,
+  },
   { name: '.invisible utility definition', rule: /visibility\s*:\s*hidden/gi },
   { name: '[hidden] attribute reset (tailwind preflight)', rule: /\[hidden(?:=[a-z-]+)?\]/gi },
   { name: 'string literal in an attribute table', rule: /["',]hidden["',]/gi },

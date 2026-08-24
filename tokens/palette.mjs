@@ -44,6 +44,68 @@ export const palette = {
 }
 
 /**
+ * A palette token as sRGB floats, with an optional hue rotation in degrees.
+ *
+ * "No inline hex, anywhere" is a CLAUDE.md rule and a shader is not an
+ * exemption from it. Every colour the GL layer emits starts at the record
+ * above and is transformed by this function, so the scenes stay on the same
+ * record as the stylesheet and there is no second place a colour can change.
+ *
+ * The rotation exists for one reason: teardown §9 describes the scenes as red,
+ * gold AND magenta, and the site has no magenta token — it is not a colour any
+ * text or edge is ever set in, so putting it in the palette would be inventing
+ * a token to satisfy one shader. Rotating the red is the honest way to say
+ * "this hue, moved".
+ *
+ * IT LIVES HERE, AND NOT IN THE GL LAYER, BECAUSE TWO CONSUMERS NEED IT.
+ * app/composables/gl.ts derives the live scenes' tints from it and re-exports
+ * it under the name every scene already reaches for; scripts/lib/stone.mjs,
+ * which draws the hero backdrop's still frame offline, derives the same four
+ * tints for the same field and cannot import TypeScript. A second
+ * implementation of an HSL round trip would agree with this one right up until
+ * it rounded differently, and the symptom would be a fallback that is a
+ * slightly different colour from the shader it stands in for — visible only to
+ * someone toggling reduced motion, which is nobody, for a phase.
+ *
+ * @param {string} hex   one of the values above
+ * @param {number} turn  degrees, signed
+ * @returns {[number, number, number]}
+ */
+export function ink(hex, turn = 0) {
+  const n = Number.parseInt(hex.slice(1), 16)
+  const r = ((n >> 16) & 255) / 255
+  const g = ((n >> 8) & 255) / 255
+  const b = (n & 255) / 255
+  if (!turn) return [r, g, b]
+
+  const hi = Math.max(r, g, b)
+  const lo = Math.min(r, g, b)
+  const l = (hi + lo) / 2
+  const span = hi - lo
+  if (!span) return [r, g, b]
+
+  const s = l > 0.5 ? span / (2 - hi - lo) : span / (hi + lo)
+  let h = 0
+  if (hi === r) h = ((g - b) / span + (g < b ? 6 : 0)) / 6
+  else if (hi === g) h = ((b - r) / span + 2) / 6
+  else h = ((r - g) / span + 4) / 6
+
+  h = (h + turn / 360 + 1) % 1
+
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+  const p = 2 * l - q
+  const lane = (t) => {
+    const u = (t + 1) % 1
+    if (u < 1 / 6) return p + (q - p) * 6 * u
+    if (u < 1 / 2) return q
+    if (u < 2 / 3) return p + (q - p) * (2 / 3 - u) * 6
+    return p
+  }
+
+  return [lane(h + 1 / 3), lane(h), lane(h - 1 / 3)]
+}
+
+/**
  * Google Fonts families, in the weights the teardown measured (§5).
  *
  * Declared as strings, not arrays: @nuxtjs/tailwindcss merges the theme with

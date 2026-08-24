@@ -113,11 +113,17 @@ function onKey(e: KeyboardEvent, i: number) {
         :inert="open === i ? undefined : true"
         class="overflow-hidden h-0"
       >
+        <!--
+          The panel takes a slot so a row can hold something other than a
+          sentence — the footer's MENU row holds the house directory as real
+          links. The default is the string, so every existing caller is
+          unchanged and a row that needs nothing more still needs nothing more.
+        -->
         <div
           class="bg-brown-dark text-cream type-body-md"
           :class="compact ? 'p-15 mb-15' : 'p-25 mb-25'"
         >
-          {{ row.body }}
+          <slot :name="`body-${i}`" :row="row">{{ row.body }}</slot>
         </div>
       </div>
     </div>

@@ -30,6 +30,13 @@ import { EMBERS, forge, plateau, type Build, type Three } from '~/composables/gl
 import { TURN } from '~/composables/scenes/disc'
 
 const DEPTH = 0.22
+/**
+ * Face curvature, as a fraction of the normalised half-width. The medallion
+ * uses 0.075 of its radius for the same job; this is a shade shallower because
+ * the mark is a thin device rather than a filled field, and a crown that deep
+ * on a three-millimetre stigma reads as a swelling.
+ */
+const DOME = 0.055
 
 /** Commands opentype.js emits, and no others. */
 const STEP = /([MLCQZ])([^MLCQZ]*)/gi
@@ -160,6 +167,56 @@ export function mark(opts: { d?: string; turn: { value: number } }): Build {
     const reach = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y)
     if (reach > 0) geo.scale(2 / reach, 2 / reach, 1)
 
+    /**
+     * THE FACES ARE DOMED — phase 11 §11.3.7, and it is the medallion's `DOME`
+     * for the medallion's reason.
+     *
+     * An extrusion has FLAT caps, and a flat metal reflects ONE point of the
+     * environment: it comes out one solid colour however it is turned, so
+     * teardown §9's gold-to-magenta-to-red gradient never lands on it. Before
+     * this the mark rendered as a gold silhouette, which is exactly what the
+     * medallion looked like before phase 3 curved its field — the same trap
+     * disc.ts documents, arrived at from the other direction, because nobody
+     * expects `ExtrudeGeometry` to have the same problem a `CircleGeometry`
+     * does.
+     *
+     * Only the CAPS move. They are the vertices whose normal is (0, 0, ±1);
+     * the bevel and the side wall are left exactly as three.js built them,
+     * because the bevel is the edge that has to stay sharp. `ExtrudeGeometry`
+     * is non-indexed, so nothing here is shared with a face it should not be.
+     *
+     * The normal is written rather than recomputed. `computeVertexNormals()`
+     * would flat-shade every triangle in the buffer, faceting the dome and
+     * destroying the bevel in the same pass; the dome's slope has a closed form
+     * and costs two lines.
+     */
+    {
+      const seat = geo.attributes.position as GL.BufferAttribute
+      const face3 = geo.attributes.normal as GL.BufferAttribute
+      // Measured on the normalised geometry, so it is the same fraction of the
+      // object whatever the committed outline turns out to be.
+      const span = 1
+      for (let i = 0; i < seat.count; i += 1) {
+        const nz = face3.getZ(i)
+        if (Math.abs(nz) < 0.99) continue
+        const side = nz > 0 ? 1 : -1
+        const x = seat.getX(i)
+        const y = seat.getY(i)
+        const r2 = Math.min(1, (x * x + y * y) / (span * span))
+        // Proud in the middle, falling away to the edge — a struck relief, not
+        // a bowl. `side` puts the crown on whichever face this vertex is on.
+        seat.setZ(i, seat.getZ(i) + side * DOME * (1 - r2))
+        // z = c - k(x² + y²) has gradient (-2kx, -2ky), so the normal leans
+        // outward along the radius by twice the dome's coefficient.
+        const gx = (2 * DOME * x) / (span * span)
+        const gy = (2 * DOME * y) / (span * span)
+        const len = Math.hypot(gx, gy, 1)
+        face3.setXYZ(i, (side * gx) / len, (side * gy) / len, side / len)
+      }
+      seat.needsUpdate = true
+      face3.needsUpdate = true
+    }
+
     const sigil = new THREE.Group()
     sigil.add(new THREE.Mesh(geo, metal))
     scene.add(sigil)
@@ -180,8 +237,12 @@ export function mark(opts: { d?: string; turn: { value: number } }): Build {
     return {
       draw: (time) => {
         const away = plateau(opts.turn.value, TURN.from, TURN.to)
-        sigil.rotation.y = away * TURN.swing
-        sigil.rotation.x = away * TURN.lean
+
+        // The SAME rule as the medallion, from the same record, including the
+        // idle drift phase 11 added. A set whose members behave differently
+        // has one member everybody looks at, and the other one carries a term.
+        sigil.rotation.y = away * TURN.swing + Math.sin(time * TURN.sway) * TURN.drift
+        sigil.rotation.x = away * TURN.lean + Math.cos(time * TURN.sway * 0.77) * TURN.drift * 0.55
         sigil.rotation.z = Math.sin(time * 0.24) * 0.014
         sigil.position.y = Math.sin(time * 0.5) * 0.012
 

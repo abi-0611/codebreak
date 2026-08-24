@@ -16,10 +16,16 @@
  * Phase 3 swaps the still for a looping clip where the codec probe says it can
  * play one. The static frame is not a fallback bolted on afterwards; it is
  * what ships, and the clip is the enhancement.
+ *
+ * The `s:` cell height is 34rem because two rows of it measure the 544px the
+ * teardown records for this section at 1440. It was 26rem — chosen by eye
+ * before there was a page to measure against — and a grid a fifth too short
+ * reads as a strip of buttons rather than as the last plate on the page.
  */
 export type Tile = {
   label: string
-  plate: { src: string; describe: string; w: number; h: number }
+  /** From `art()` in app/content/media.ts, so the size cannot drift. */
+  plate: { src: string; describe: string; w: number; h: number; srcset?: string }
   /** Absent until the destination exists. Rule 8. */
   to?: string
 }
@@ -43,13 +49,12 @@ withDefaults(
       v-for="tile in tiles"
       :key="tile.label"
       :to="tile.to"
-      class="group stack --c --fill relative h-[22rem] s:h-[26rem] overflow-hidden border-b border-brown-dark s:odd:border-r s:odd:border-brown-dark focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-gold"
+      class="group stack --c --fill relative h-[22rem] s:h-[34rem] overflow-hidden border-b border-brown-dark s:odd:border-r s:odd:border-brown-dark focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-gold"
     >
+      <!-- One cell of a 2x2 grid on a desktop, the full column on a phone. -->
       <Plate
-        :src="tile.plate.src"
-        :describe="tile.plate.describe"
-        :w="tile.plate.w"
-        :h="tile.plate.h"
+        v-bind="tile.plate"
+        sizes="(min-width: 650px) 50vw, 100vw"
         class="opacity-30 transition-opacity duration-700 ease-expo has-hover:group-hover:opacity-50"
       />
       <span class="relative z-2 type-h3 text-cream text-center px-20">

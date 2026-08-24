@@ -26,13 +26,29 @@ withDefaults(
      */
     rule?: boolean
     /**
+     * ONE full-height hairline down the middle — phase 11 §11.3.3 and §11.3.7.
+     *
+     * Not `rule`, which is a PAIR of verticals 44rem apart that the seal and
+     * the dispatches plate sit between. This is the spine of a two-column
+     * split: the medallion's section and the guild's are both a column of copy
+     * against a struck object, divided by a single rule.
+     *
+     * IT IS DRAWN HERE RATHER THAN INSIDE THE COLUMN because §11.3.3 asks for
+     * the section's FULL height. A rule inside the content stops at the padding
+     * and reads as a divider between two blocks; a rule that runs edge to edge
+     * reads as the section being built on it. `left-1/2` lands on the column
+     * boundary exactly, because `.site-max` is symmetric and centred, so its
+     * content midpoint is the section's midpoint.
+     */
+    split?: boolean
+    /**
      * The carousel section is the one exception to `z-2` — it sits at `z-3` so
      * its overflowing cards pass over the section below rather than under it.
      */
     lift?: boolean
     tag?: string
   }>(),
-  { ground: 'black', pad: 'py-65 s:py-100', rule: false, lift: false, tag: 'section' },
+  { ground: 'black', pad: 'py-65 s:py-100', rule: false, split: false, lift: false, tag: 'section' },
 )
 
 /**
@@ -64,6 +80,17 @@ useReveal(root)
     <div
       v-if="rule"
       class="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 w-[44rem] border-x border-brown-dark hidden s:block"
+      aria-hidden="true"
+    />
+
+    <!--
+      The split's spine. Drawn from `s:` up only, for the same reason the pair
+      above is: at 375px the two columns are one column, so a rule down the
+      middle of the copy would be a line through the middle of a sentence.
+    -->
+    <div
+      v-if="split"
+      class="pointer-events-none absolute inset-y-0 left-1/2 border-l border-brown-dark hidden s:block"
       aria-hidden="true"
     />
     <slot />

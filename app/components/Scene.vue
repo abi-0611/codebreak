@@ -4,6 +4,8 @@ import { useParallax, useTurn } from '~/composables/motion'
 import { drift } from '~/composables/scenes/drift'
 import { disc } from '~/composables/scenes/disc'
 import { mark } from '~/composables/scenes/mark'
+import { strike } from '~/composables/scenes/strike'
+import { tunnel } from '~/composables/scenes/tunnel'
 
 /**
  * The one wrapper every GL scene mounts through — task 3.7.
@@ -25,7 +27,7 @@ import { mark } from '~/composables/scenes/mark'
  */
 const props = withDefaults(
   defineProps<{
-    kind: 'drift' | 'disc' | 'mark'
+    kind: 'drift' | 'disc' | 'mark' | 'strike' | 'tunnel'
     /**
      * The accessible name for the whole surface — live or fallen back. It is a
      * description of the object, never the material drawn on it: rule 1 means
@@ -73,7 +75,11 @@ const build: Build =
     ? disc({ face: props.face, turn: spin })
     : props.kind === 'mark'
       ? mark({ d: props.outline, turn: spin })
-      : drift
+      : props.kind === 'strike'
+        ? strike({ turn: spin })
+        : props.kind === 'tunnel'
+          ? tunnel({ turn: spin })
+          : drift
 
 const { live } = useGL(wrap, glass, build, { flat: () => props.flat })
 </script>
